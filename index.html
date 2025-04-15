@@ -92,7 +92,7 @@
     let dataEntries = [];
 
     // Fetch the external JSON file
-    fetch('/Users/news/Desktop/Projects/Website/Development/Search Page/data.json')
+    fetch('data.json')
       .then(response => {
         if (!response.ok) {
           throw new Error("Network response was not ok " + response.statusText);
