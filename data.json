@@ -19,7 +19,7 @@
   }
   {
     "name": "shoe",
-    "keywords": ["bird", "avian", "wing","cat"],
+    "keywords": ["bird", "avian", "wing", "cat"],
     "text": "A colorful bird in flight.",
     "link": "https://example.com/bird"
   }
