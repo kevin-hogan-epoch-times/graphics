@@ -23,4 +23,10 @@
     "text": "A colorful bird in flight.",
     "link": "https://example.com/bird"
   }
+   {
+    "name": "this",
+    "keywords": ["cat", "feline", "pet", "dog"],
+    "text": "A cute little cat.",
+    "link": "https://example.com/cat"
+  },
 ]
