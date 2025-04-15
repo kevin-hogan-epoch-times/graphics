@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Keyword Search Demo</title>
+  <style>
+    /* Basic CSS Reset */
+    body, h1, p, input, div {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Overall page styling */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      padding: 30px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    /* Search bar styling */
+    #searchBar {
+      width: 100%;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    /* Container for results */
+    #results {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Each result item */
+    .result-item {
+      background-color: #fff;
+      padding: 15px;
+      border: 1px solid #e1e1e1;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .result-item img {
+      width: 150px;
+      height: 150px;
+      object-fit: cover;
+      margin-right: 20px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+
+    .result-item a {
+      font-size: 18px;
+      color: #0077cc;
+      text-decoration: none;
+    }
+
+    .result-item a:hover {
+      text-decoration: underline;
+    }
+
+    /* No results message */
+    #noResults {
+      text-align: center;
+      color: #666;
+      font-size: 18px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Search by Keyword</h1>
+  <!-- Search Input -->
+  <input type="text" id="searchBar" placeholder="Type keywords to search..." />
+
+  <!-- Results will be displayed in this container -->
+  <div id="results"></div>
+
+  <script>
+    // Hold JSON data from external file
+    let dataEntries = [];
+
+    // Fetch the external JSON file
+    fetch('/Users/news/Desktop/Projects/Website/Development/Search Page/data.json')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok " + response.statusText);
+        }
+        return response.json();
+      })
+      .then(data => {
+        dataEntries = data;
+      })
+      .catch(error => console.error("Error fetching data:", error));
+
+    // Listen for keyup events on the search bar to trigger filtering
+    document.getElementById("searchBar").addEventListener("keyup", function() {
+      const query = this.value.toLowerCase().trim();
+      const resultsContainer = document.getElementById("results");
+      // Clear previous results
+      resultsContainer.innerHTML = "";
+      
+      if (query === "") {
+        return; // If search bar is empty, do nothing
+      }
+      
+      // Filter results: Check if any of the entry's keywords include the search query.
+      const matchedEntries = dataEntries.filter(entry => {
+        // Ensure keywords are treated in a case-insensitive manner.
+        return entry.keywords.some(keyword => keyword.toLowerCase().includes(query));
+      });
+
+      if (matchedEntries.length === 0) {
+        // If no matches, show a friendly message.
+        const noResults = document.createElement("p");
+        noResults.id = "noResults";
+        noResults.textContent = "No matching results found.";
+        resultsContainer.appendChild(noResults);
+        return;
+      }
+
+      // For each matched entry, build a result element.
+      matchedEntries.forEach(entry => {
+        // Create a container for the result item.
+        const resultItem = document.createElement("div");
+        resultItem.className = "result-item";
+
+        // Create an image element.
+        // Here we use a placeholder image service and pass the entry name as text.
+        const img = document.createElement("img");
+        img.src = "https://via.placeholder.com/150?text=" + encodeURIComponent(entry.name);
+        img.alt = entry.name;
+
+        // Create a link element wrapping the text description.
+        const link = document.createElement("a");
+        link.href = entry.link;
+        link.target = "_blank";  // Opens the link in a new tab
+        link.textContent = entry.text;
+
+        // Append the image and link to the result container.
+        resultItem.appendChild(img);
+        resultItem.appendChild(link);
+
+        // Append the result item to the results container.
+        resultsContainer.appendChild(resultItem);
+      });
+    });
+  </script>
+</body>
+</html>
