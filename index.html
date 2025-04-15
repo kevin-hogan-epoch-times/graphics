@@ -10,19 +10,16 @@
       padding: 0;
       box-sizing: border-box;
     }
-
     /* Overall page styling */
     body {
       font-family: Arial, sans-serif;
       background-color: #f9f9f9;
       padding: 30px;
     }
-
     h1 {
       margin-bottom: 20px;
       text-align: center;
     }
-
     /* Search bar styling */
     #searchBar {
       width: 100%;
@@ -32,14 +29,12 @@
       border: 1px solid #ccc;
       border-radius: 4px;
     }
-
     /* Container for results */
     #results {
       display: flex;
       flex-direction: column;
       gap: 20px;
     }
-
     /* Each result item */
     .result-item {
       background-color: #fff;
@@ -50,7 +45,6 @@
       align-items: center;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-
     .result-item img {
       width: 150px;
       height: 150px;
@@ -59,17 +53,14 @@
       border-radius: 4px;
       border: 1px solid #ddd;
     }
-
     .result-item a {
       font-size: 18px;
       color: #0077cc;
       text-decoration: none;
     }
-
     .result-item a:hover {
       text-decoration: underline;
     }
-
     /* No results message */
     #noResults {
       text-align: center;
@@ -111,16 +102,22 @@
       // Clear previous results
       resultsContainer.innerHTML = "";
       
+      // If search bar is empty, exit the function
       if (query === "") {
-        return; // If search bar is empty, do nothing
+        return;
       }
       
-      // Filter results: Check if any of the entry's keywords include the search query.
+      // Split the query into individual words (e.g., "cat dog" → ["cat", "dog"])
+      const queryWords = query.split(/\s+/);
+      
+      // Filter results:
+      // For each entry, check if any of the keywords contains any of the search words.
       const matchedEntries = dataEntries.filter(entry => {
-        // Ensure keywords are treated in a case-insensitive manner.
-        return entry.keywords.some(keyword => keyword.toLowerCase().includes(query));
+        return queryWords.some(qWord => 
+          entry.keywords.some(keyword => keyword.toLowerCase().includes(qWord))
+        );
       });
-
+      
       if (matchedEntries.length === 0) {
         // If no matches, show a friendly message.
         const noResults = document.createElement("p");
@@ -129,29 +126,28 @@
         resultsContainer.appendChild(noResults);
         return;
       }
-
-      // For each matched entry, build a result element.
+      
+      // Display each matching entry.
       matchedEntries.forEach(entry => {
         // Create a container for the result item.
         const resultItem = document.createElement("div");
         resultItem.className = "result-item";
-
+  
         // Create an image element.
-        // Here we use a placeholder image service and pass the entry name as text.
         const img = document.createElement("img");
         img.src = "https://via.placeholder.com/150?text=" + encodeURIComponent(entry.name);
         img.alt = entry.name;
-
+  
         // Create a link element wrapping the text description.
         const link = document.createElement("a");
         link.href = entry.link;
         link.target = "_blank";  // Opens the link in a new tab
         link.textContent = entry.text;
-
+  
         // Append the image and link to the result container.
         resultItem.appendChild(img);
         resultItem.appendChild(link);
-
+  
         // Append the result item to the results container.
         resultsContainer.appendChild(resultItem);
       });
