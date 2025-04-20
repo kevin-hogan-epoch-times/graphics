@@ -1,180 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Keyword Search Demo</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quote-Based AI Fact Checker</title>
   <style>
-    /* Basic CSS Reset */
-    body, h1, p, input, button, div {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    /* Overall page styling */
     body {
       font-family: Arial, sans-serif;
-      background-color: #f9f9f9;
-      padding: 30px;
-    }
-    h1 {
-      margin-bottom: 20px;
-      text-align: center;
-    }
-    /* Search bar and button container styling */
-    .search-container {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    #searchBar {
-      width: 60%;
-      padding: 12px 20px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    #searchBtn {
-      padding: 12px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 4px;
-      background-color: #0077cc;
-      color: white;
-      margin-left: 10px;
-      cursor: pointer;
-    }
-    #searchBtn:hover {
-      background-color: #005fa3;
-    }
-    /* Container for results */
-    #results {
+      background: #f9f9f9;
+      margin: 0;
+      padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 20px;
-    }
-    /* Each result item */
-    .result-item {
-      background-color: #fff;
-      padding: 15px;
-      border: 1px solid #e1e1e1;
-      border-radius: 4px;
-      display: flex;
       align-items: center;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      justify-content: flex-start;
+      height: 100vh;
     }
-    .result-item img {
-      width: 150px;
-      height: 150px;
-      object-fit: cover;
-      margin-right: 20px;
-      border-radius: 4px;
-      border: 1px solid #ddd;
-    }
-    .result-item a {
-      font-size: 18px;
-      color: #0077cc;
-      text-decoration: none;
-    }
-    .result-item a:hover {
-      text-decoration: underline;
-    }
-    /* No results message */
-    #noResults {
+    header {
+      background-color: #20232a;
+      color: #fff;
+      width: 100%;
+      padding: 1rem;
       text-align: center;
-      color: #666;
-      font-size: 18px;
-      margin-top: 20px;
+    }
+    main {
+      max-width: 700px;
+      width: 90%;
+      padding: 2rem 1rem;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      padding: 1rem;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .results {
+      margin-top: 2rem;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .quote {
+      margin-bottom: 1rem;
+      border-left: 4px solid #007BFF;
+      padding-left: 1rem;
     }
   </style>
 </head>
 <body>
-  <h1>Search by Keyword</h1>
-  <!-- Search Input and Button -->
-  <div class="search-container">
-    <input type="text" id="searchBar" placeholder="Type keywords to search..." />
-    <button id="searchBtn">Search</button>
-  </div>
-
-  <!-- Results will be displayed in this container -->
-  <div id="results"></div>
+  <header>
+    <h1>Quote-Based AI Fact Checker</h1>
+  </header>
+  <main>
+    <textarea id="input" placeholder="Enter a claim or paragraph to fact-check..."></textarea>
+    <button onclick="submitFactCheck()">Check Facts</button>
+    <div class="results" id="results"></div>
+  </main>
 
   <script>
-    // Hold JSON data from external file
-    let dataEntries = [];
-
-    // Fetch the external JSON file
-    fetch('data.json')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok " + response.statusText);
-        }
-        return response.json();
-      })
-      .then(data => {
-        dataEntries = data;
-      })
-      .catch(error => console.error("Error fetching data:", error));
-
-    // Search function which gets executed on button click or pressing Enter
-    function doSearch() {
-      const query = document.getElementById("searchBar").value.toLowerCase().trim();
+    async function submitFactCheck() {
+      const input = document.getElementById("input").value;
       const resultsContainer = document.getElementById("results");
-      // Clear previous results
-      resultsContainer.innerHTML = "";
-      
-      if (query === "") {
-        return; // Do nothing if search bar is empty
+      resultsContainer.innerHTML = "<p><em>Checking facts, please wait...</em></p>";
+
+      try {
+        const response = await fetch("https://transcribe.hogandashboard.com/api/ask", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ prompt: input })
+        });
+
+        const data = await response.json();
+
+        if (data.quotes && data.quotes.length > 0) {
+          resultsContainer.innerHTML = data.quotes
+            .map(quote => `<div class='quote'>"${quote}"</div>`) // assumes each item is a quote string
+            .join("");
+        } else {
+          resultsContainer.innerHTML = "<p>No matching quotes found.</p>";
+        }
+      } catch (err) {
+        resultsContainer.innerHTML = `<p style='color:red;'>Error: ${err.message}</p>`;
       }
-      
-      // Split the query into individual words.
-      const queryWords = query.split(/\s+/);
-      
-      // Filter the data entries. The entry is kept if any of its keywords include any of the search words.
-      const matchedEntries = dataEntries.filter(entry => {
-        return queryWords.some(qWord => 
-          entry.keywords.some(keyword => keyword.toLowerCase().includes(qWord))
-        );
-      });
-      
-      if (matchedEntries.length === 0) {
-        const noResults = document.createElement("p");
-        noResults.id = "noResults";
-        noResults.textContent = "No matching results found.";
-        resultsContainer.appendChild(noResults);
-        return;
-      }
-      
-      // Build and display the matching entries.
-      matchedEntries.forEach(entry => {
-        const resultItem = document.createElement("div");
-        resultItem.className = "result-item";
-  
-        // Create an image element using a placeholder image.
-        const img = document.createElement("img");
-        img.src = "https://via.placeholder.com/150?text=" + encodeURIComponent(entry.name);
-        img.alt = entry.name;
-  
-        // Create a link element with the entry's text.
-        const link = document.createElement("a");
-        link.href = entry.link;
-        link.target = "_blank";
-        link.textContent = entry.text;
-  
-        resultItem.appendChild(img);
-        resultItem.appendChild(link);
-  
-        resultsContainer.appendChild(resultItem);
-      });
     }
-
-    // Add event listener for the "Search" button
-    document.getElementById("searchBtn").addEventListener("click", doSearch);
-
-    // Add event listener to trigger search when Enter is pressed in the search bar
-    document.getElementById("searchBar").addEventListener("keydown", function(e) {
-      if (e.key === "Enter") {
-        doSearch();
-      }
-    });
   </script>
 </body>
 </html>
