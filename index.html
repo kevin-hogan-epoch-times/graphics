@@ -12,11 +12,13 @@
   <h2>Upload Audio for Transcription</h2>
   <form id="uploadForm" enctype="multipart/form-data">
     <input type="file" name="audio" accept="audio/*" required><br>
+    <label for="model">Choose transcription quality:</label>
     <select name="model" required>
       <option value="tiny">Tiny (fastest)</option>
       <option value="small">Small</option>
       <option value="medium">Medium</option>
-      <option value="large">Large</option>
+      <option value="large">Large v2</option>
+      <option value="large-v3">Large v3 (best quality)</option>
     </select><br>
     <button type="submit">Upload & Transcribe</button>
   </form>
