@@ -1,104 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quote-Based AI Fact Checker</title>
+  <meta charset="utf-8">
+  <title>Local Transcriber</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      height: 100vh;
-    }
-    header {
-      background-color: #20232a;
-      color: #fff;
-      width: 100%;
-      padding: 1rem;
-      text-align: center;
-    }
-    main {
-      max-width: 700px;
-      width: 90%;
-      padding: 2rem 1rem;
-    }
-    textarea {
-      width: 100%;
-      height: 150px;
-      padding: 1rem;
-      font-size: 1rem;
-      margin-bottom: 1rem;
-    }
-    button {
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      font-size: 1rem;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    .results {
-      margin-top: 2rem;
-      background: #fff;
-      padding: 1rem;
-      border-radius: 6px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    .quote {
-      margin-bottom: 1rem;
-      border-left: 4px solid #007BFF;
-      padding-left: 1rem;
-    }
+    body { font-family: sans-serif; max-width: 500px; margin: 50px auto; text-align: center; }
+    input, select, button { margin: 10px 0; padding: 10px; width: 100%; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Quote-Based AI Fact Checker</h1>
-  </header>
-  <main>
-    <textarea id="input" placeholder="Enter a claim or paragraph to fact-check..."></textarea>
-    <button onclick="submitFactCheck()">Check Facts</button>
-    <div class="results" id="results"></div>
-  </main>
+  <h2>Upload Audio for Transcription</h2>
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="audio" accept="audio/*" required><br>
+    <select name="model" required>
+      <option value="tiny">Tiny (fastest)</option>
+      <option value="small">Small</option>
+      <option value="medium">Medium</option>
+      <option value="large">Large</option>
+    </select><br>
+    <button type="submit">Upload & Transcribe</button>
+  </form>
+
+  <p id="status"></p>
 
   <script>
-    async function submitFactCheck() {
-      const input = document.getElementById("input").value;
-      const resultsContainer = document.getElementById("results");
-      resultsContainer.innerHTML = "<p><em>Checking facts, please wait...</em></p>";
-
+    document.getElementById("uploadForm").onsubmit = async function(e) {
+      e.preventDefault();
+      const form = new FormData(this);
+      document.getElementById("status").innerText = "Processing…";
       try {
-        const response = await fetch("https://transcribe.hogandashboard.com/api/ask", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ prompt: input })
-        });
-
-        const data = await response.json();
-
-        if (data.quotes && data.quotes.length > 0) {
-          resultsContainer.innerHTML = data.quotes
-            .map(quote => `<div class='quote'>"${quote}"</div>`) // assumes each item is a quote string
-            .join("");
+        const res = await fetch("/transcribe", { method: "POST", body: form });
+        const json = await res.json();
+        if (json.url) {
+          document.getElementById("status").innerHTML =
+            `✅ Transcript ready: <a href="${json.url}" target="_blank">${json.url}</a>`;
         } else {
-          resultsContainer.innerHTML = "<p>No matching quotes found.</p>";
+          throw new Error(JSON.stringify(json));
         }
       } catch (err) {
-        resultsContainer.innerHTML = `<p style='color:red;'>Error: ${err.message}</p>`;
+        document.getElementById("status").innerText = "Error: " + err;
       }
-    }
+    };
   </script>
 </body>
 </html>
