@@ -4,9 +4,22 @@
   <meta charset="UTF-8" />
   <title>2020 County Results</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 2rem; background: #f4f4f4; }
-    select, button { font-size: 1rem; padding: 0.5rem; margin-right: 1rem; }
-    .results { margin-top: 2rem; background: white; padding: 1rem; border-radius: 5px; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background: #f4f4f4;
+    }
+    select, button {
+      font-size: 1rem;
+      padding: 0.5rem;
+      margin-right: 1rem;
+    }
+    .results {
+      margin-top: 2rem;
+      background: white;
+      padding: 1rem;
+      border-radius: 5px;
+    }
   </style>
 </head>
 <body>
@@ -14,9 +27,7 @@
 
   <label for="state">State:</label>
   <select id="state">
-    <option value="IL">Illinois</option>
-    <option value="AZ">Arizona</option>
-    <option value="PA">Pennsylvania</option>
+    <option value="">Select a state</option>
   </select>
 
   <label for="county">County:</label>
@@ -29,14 +40,42 @@
   <div class="results" id="results"></div>
 
   <script>
-    const countiesByState = {
-      IL: ["Cook", "DuPage", "Lake", "Will", "Kane"],
-      AZ: ["Maricopa", "Pima", "Pinal", "Yavapai"],
-      PA: ["Philadelphia", "Allegheny", "Montgomery", "Bucks"]
-    };
-
     const stateSelect = document.getElementById("state");
     const countySelect = document.getElementById("county");
+
+    const stateToAbbr = {
+      "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
+      "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE", "Florida": "FL", "Georgia": "GA",
+      "Hawai?i": "HI", "Idaho": "ID", "Illinois": "IL", "Indiana": "IN", "Iowa": "IA",
+      "Kansas": "KS", "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD",
+      "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS", "Missouri": "MO",
+      "Montana": "MT", "Nebraska": "NE", "Nevada": "NV", "New Hampshire": "NH", "New Jersey": "NJ",
+      "New Mexico": "NM", "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH",
+      "Oklahoma": "OK", "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC",
+      "South Dakota": "SD", "Tennessee": "TN", "Texas": "TX", "Utah": "UT", "Vermont": "VT",
+      "Virginia": "VA", "Washington": "WA", "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY"
+    };
+
+    let countiesByState = {};
+
+    fetch("counties_list.json")
+      .then(response => response.json())
+      .then(data => {
+        data.forEach(({ County, State }) => {
+          const abbr = stateToAbbr[State];
+          if (!abbr) return;
+          if (!countiesByState[abbr]) countiesByState[abbr] = [];
+          countiesByState[abbr].push(County);
+        });
+
+        // Populate state dropdown
+        Object.keys(countiesByState).sort().forEach(abbr => {
+          const opt = document.createElement("option");
+          opt.value = abbr;
+          opt.textContent = abbr;
+          stateSelect.appendChild(opt);
+        });
+      });
 
     stateSelect.addEventListener("change", () => {
       const state = stateSelect.value;
@@ -64,3 +103,4 @@
   </script>
 </body>
 </html>
+
