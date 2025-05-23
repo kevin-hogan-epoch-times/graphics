@@ -58,7 +58,7 @@
 
     let countiesByState = {};
 
-    fetch("counties_list.json")
+    fetch("/static/counties_list.json")
       .then(response => response.json())
       .then(data => {
         data.forEach(({ County, State }) => {
