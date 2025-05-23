@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>2020 County Results</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; background: #f4f4f4; }
+    select, button { font-size: 1rem; padding: 0.5rem; margin-right: 1rem; }
+    .results { margin-top: 2rem; background: white; padding: 1rem; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>2020 Presidential Election Results</h1>
+
+  <label for="state">State:</label>
+  <select id="state">
+    <option value="IL">Illinois</option>
+    <option value="AZ">Arizona</option>
+    <option value="PA">Pennsylvania</option>
+  </select>
+
+  <label for="county">County:</label>
+  <select id="county">
+    <option>Select a state</option>
+  </select>
+
+  <button onclick="loadResults()">Show Results</button>
+
+  <div class="results" id="results"></div>
+
+  <script>
+    const countiesByState = {
+      IL: ["Cook", "DuPage", "Lake", "Will", "Kane"],
+      AZ: ["Maricopa", "Pima", "Pinal", "Yavapai"],
+      PA: ["Philadelphia", "Allegheny", "Montgomery", "Bucks"]
+    };
+
+    const stateSelect = document.getElementById("state");
+    const countySelect = document.getElementById("county");
+
+    stateSelect.addEventListener("change", () => {
+      const state = stateSelect.value;
+      const counties = countiesByState[state] || [];
+      countySelect.innerHTML = counties.map(c => `<option>${c}</option>`).join("");
+    });
+
+    async function loadResults() {
+      const state = stateSelect.value;
+      const county = countySelect.value;
+      const res = await fetch(`/results?state=${state}&county=${county}`);
+      const data = await res.json();
+
+      const resultsDiv = document.getElementById("results");
+      if (data.error) {
+        resultsDiv.innerHTML = `<p>${data.error}</p>`;
+        return;
+      }
+
+      resultsDiv.innerHTML = `<h3>${data.county} County, ${data.state}</h3>`;
+      data.results.forEach(c => {
+        resultsDiv.innerHTML += `<p>${c.name} (${c.party}) — ${c.votes} votes</p>`;
+      });
+    }
+  </script>
+</body>
+</html>
