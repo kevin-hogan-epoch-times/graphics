@@ -83,23 +83,28 @@
       countySelect.innerHTML = counties.map(c => `<option>${c}</option>`).join("");
     });
 
-    async function loadResults() {
-      const state = stateSelect.value;
-      const county = countySelect.value;
-      const res = await fetch(`/results?state=${state}&county=${county}`);
-      const data = await res.json();
+      async function loadResults() {
+        const state = stateSelect.value;
+        let county = countySelect.value;
 
-      const resultsDiv = document.getElementById("results");
-      if (data.error) {
-        resultsDiv.innerHTML = `<p>${data.error}</p>`;
-        return;
+        // Remove 'County' from the county name if present
+        county = county.replace(/ County$/, '');
+
+        const res = await fetch(`/results?state=${state}&county=${county}`);
+        const data = await res.json();
+
+        const resultsDiv = document.getElementById("results");
+        if (data.error) {
+          resultsDiv.innerHTML = `<p>${data.error}</p>`;
+          return;
+        }
+
+        resultsDiv.innerHTML = `<h3>${data.county} County, ${data.state}</h3>`;
+        data.results.forEach(c => {
+          resultsDiv.innerHTML += `<p>${c.name} (${c.party}) — ${c.votes} votes</p>`;
+        });
       }
 
-      resultsDiv.innerHTML = `<h3>${data.county} County, ${data.state}</h3>`;
-      data.results.forEach(c => {
-        resultsDiv.innerHTML += `<p>${c.name} (${c.party}) — ${c.votes} votes</p>`;
-      });
-    }
   </script>
 </body>
 </html>
