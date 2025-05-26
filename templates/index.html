@@ -2,27 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Election Download</title>
+  <title>County Results Download</title>
 </head>
 <body>
-  <h1>Download County Election Results (10 at a time)</h1>
-  <button onclick="downloadBatch()">Download Next Batch</button>
+  <h1>Download First 50 Counties</h1>
+  <p>You can change the number in <code>app.py</code> to 100, 1000, or 3000</p>
+  <button onclick="download()">Download</button>
 
   <script>
-    let offset = 0;
-    const limit = 10;
-
-    function downloadBatch() {
-      const url = `/batch?offset=${offset}&limit=${limit}`;
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `results_${offset}_to_${offset + limit - 1}.json`;
+    function download() {
+      const a = document.createElement("a");
+      a.href = "/download";
+      a.download = "results.json";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      offset += limit;
     }
   </script>
 </body>
 </html>
-

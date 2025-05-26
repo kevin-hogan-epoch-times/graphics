@@ -1,16 +1,18 @@
-from flask import Flask, render_template, request, send_file
-import aiohttp
-import asyncio
+from flask import Flask, render_template, send_file
+import requests
 import xml.etree.ElementTree as ET
 import json
 from io import BytesIO
+import time
 import os
-from collections import defaultdict
 
 app = Flask(__name__)
 
 API_KEY = "your_api_key_here"
 BASE_URL = "https://api.ap.org/v2/elections"
+
+COUNTY_LIMIT = 50  # <-- Change this to 100, 1000, or 3000
+SLEEP_SECONDS = 3  # seconds between each API call
 
 state_to_abbr = {
     "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
@@ -29,73 +31,51 @@ state_to_abbr = {
 def index():
     return render_template("index.html")
 
-@app.route("/batch")
-def batch():
-    offset = int(request.args.get("offset", 0))
-    limit = int(request.args.get("limit", 10))
-
+@app.route("/download")
+def download_counties():
     with open(os.path.join("static", "counties_list.json"), "r") as f:
         counties = json.load(f)
 
-    selected = counties[offset:offset + limit]
+    counties = counties[:COUNTY_LIMIT]
+    results = {"2020": {}, "2024": {}}
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    result_data = loop.run_until_complete(fetch_counties(selected))
-    loop.close()
+    for i, county in enumerate(counties):
+        state_name = county["State"]
+        county_name = county["County"]
+        abbr = state_to_abbr.get(state_name)
+        if not abbr:
+            continue
 
-    output = BytesIO()
-    output.write(json.dumps(result_data, indent=2).encode("utf-8"))
-    output.seek(0)
-
-    return send_file(
-        output,
-        mimetype="application/json",
-        as_attachment=True,
-        download_name=f"results_{offset}_to_{offset + limit - 1}.json"
-    )
-
-async def fetch_counties(counties):
-    headers = {"x-api-key": API_KEY}
-    results = defaultdict(dict)
-    semaphore = asyncio.Semaphore(3)
-
-    async with aiohttp.ClientSession(headers=headers) as session:
         for year, date in [("2020", "2020-11-03"), ("2024", "2024-11-05")]:
-            tasks = []
-            for entry in counties:
-                state = entry["State"]
-                county = entry["County"]
-                abbr = state_to_abbr.get(state)
-                if not abbr:
+            url = f"{BASE_URL}/{date}?statepostal={abbr}&raceTypeId=G&raceId=0&level=ru"
+            headers = {"x-api-key": API_KEY}
+            try:
+                response = requests.get(url, headers=headers, timeout=15)
+                if response.status_code != 200:
                     continue
-                url = f"{BASE_URL}/{date}?statepostal={abbr}&raceTypeId=G&raceId=0&level=ru"
-                task = fetch_one(session, semaphore, url, abbr, county, year, results)
-                tasks.append(task)
-            await asyncio.gather(*tasks)  # fresh list per year
-    return results
-
-async def fetch_one(session, semaphore, url, abbr, county, year, results):
-    try:
-        async with semaphore:
-            async with session.get(url, timeout=10) as resp:
-                if resp.status != 200:
-                    return
-                text = await resp.text()
-                try:
-                    root = ET.fromstring(text)
-                except ET.ParseError:
-                    return
+                root = ET.fromstring(response.text)
                 for ru in root.iter("ReportingUnit"):
-                    if ru.attrib.get("Name") == county.replace(" County", ""):
-                        data = []
+                    if ru.attrib.get("Name") == county_name.replace(" County", ""):
+                        result = []
                         for c in ru.findall("Candidate"):
-                            data.append({
+                            result.append({
                                 "name": f"{c.attrib.get('First')} {c.attrib.get('Last')}",
                                 "party": c.attrib.get("Party"),
                                 "votes": c.attrib.get("VoteCount")
                             })
-                        results[year].setdefault(abbr, {})[county] = data
+                        results[year].setdefault(abbr, {})[county_name] = result
                         break
-    except Exception:
-        return
+            except Exception as e:
+                print(f"Error for {county_name}, {state_name}: {e}")
+
+        print(f"[{i+1}/{COUNTY_LIMIT}] Processed {county_name}, {state_name}")
+        time.sleep(SLEEP_SECONDS)
+
+    buffer = BytesIO()
+    buffer.write(json.dumps(results, indent=2).encode())
+    buffer.seek(0)
+    return send_file(buffer, mimetype="application/json", as_attachment=True,
+                     download_name=f"election_results_{COUNTY_LIMIT}_counties.json")
+
+if __name__ == "__main__":
+    app.run(debug=True)
