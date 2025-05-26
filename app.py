@@ -5,6 +5,8 @@ import json
 from io import BytesIO
 from collections import defaultdict
 import os
+import aiohttp
+import asyncio
 
 app = Flask(__name__)
 
@@ -42,32 +44,56 @@ def results():
 
 @app.route("/all-results")
 def all_results():
-    try:
-        with open(os.path.join("static", "counties_list.json"), "r") as f:
-            counties = json.load(f)
-    except Exception as e:
-        return jsonify({"error": f"Error loading counties_list.json: {str(e)}"}), 500
+    state_filter = request.args.get("state")
+    max_count = int(request.args.get("limit", 0))
 
+    with open(os.path.join("static", "counties_list.json"), "r") as f:
+        counties = json.load(f)
+
+    if state_filter:
+        counties = [c for c in counties if state_to_abbr.get(c["State"]) == state_filter.upper()]
+    if max_count > 0:
+        counties = counties[:max_count]
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    result_data = loop.run_until_complete(fetch_all_results(counties))
+    loop.close()
+
+    output = BytesIO()
+    output.write(json.dumps(result_data, indent=2).encode("utf-8"))
+    output.seek(0)
+    return send_file(output, mimetype="application/json", as_attachment=True, download_name="all_election_results.json")
+
+async def fetch_all_results(counties):
+    semaphore = asyncio.Semaphore(10)
     headers = {"x-api-key": API_KEY}
     election_data = defaultdict(dict)
 
-    for year, date in [("2020", "2020-11-03"), ("2024", "2024-11-05")]:
-        for entry in counties[:5]:
-            state_name = entry["State"]
-            county_name = entry["County"]
-            state_abbr = state_to_abbr.get(state_name)
-            if not state_abbr:
-                continue
-
-            url = f"{BASE_URL}/{date}?statepostal={state_abbr}&raceTypeId=G&raceId=0&level=ru"
-
-            try:
-                res = requests.get(url, headers=headers, timeout=10)
-                if res.status_code != 200:
-                    print(f"[{year}] Failed: {state_abbr} - {county_name} — Status {res.status_code}")
+    async with aiohttp.ClientSession(headers=headers) as session:
+        tasks = []
+        for year, date in [("2020", "2020-11-03"), ("2024", "2024-11-05")]:
+            for entry in counties:
+                state_name = entry["State"]
+                county_name = entry["County"]
+                state_abbr = state_to_abbr.get(state_name)
+                if not state_abbr:
                     continue
+                url = f"{BASE_URL}/{date}?statepostal={state_abbr}&raceTypeId=G&raceId=0&level=ru"
+                tasks.append(fetch_one(session, semaphore, url, state_abbr, county_name, year, election_data))
 
-                root = ET.fromstring(res.text)
+        await asyncio.gather(*tasks)
+    return election_data
+
+async def fetch_one(session, semaphore, url, state_abbr, county_name, year, election_data):
+    try:
+        async with semaphore:
+            async with session.get(url, timeout=10) as resp:
+                if resp.status != 200:
+                    print(f"Failed [{resp.status}]: {url}")
+                    return
+                text = await resp.text()
+                root = ET.fromstring(text)
                 for ru in root.iter("ReportingUnit"):
                     if ru.attrib.get("Name") == county_name.replace(" County", ""):
                         results = []
@@ -79,18 +105,8 @@ def all_results():
                             })
                         election_data[year].setdefault(state_abbr, {})[county_name] = results
                         break
-
-            except Exception as e:
-                print(f"[{year}] Exception for {state_abbr} - {county_name}: {str(e)}")
-                continue
-
-    try:
-        output = BytesIO()
-        output.write(json.dumps(election_data, indent=2).encode("utf-8"))
-        output.seek(0)
-        return send_file(output, mimetype="application/json", as_attachment=True, download_name="all_election_results.json")
     except Exception as e:
-        return jsonify({"error": f"Error creating file: {str(e)}"}), 500
+        print(f"Error fetching {state_abbr} - {county_name} ({year}): {e}")
 
 # Mapping for state names to abbreviations
 state_to_abbr = {
