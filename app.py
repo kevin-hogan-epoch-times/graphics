@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import json
 from io import BytesIO
 from collections import defaultdict
+import os
 
 app = Flask(__name__)
 
@@ -41,8 +42,11 @@ def results():
 
 @app.route("/all-results")
 def all_results():
-    with open("static/counties_list.json", "r") as f:
-        counties = json.load(f)
+    try:
+        with open(os.path.join("static", "counties_list.json"), "r") as f:
+            counties = json.load(f)
+    except Exception as e:
+        return jsonify({"error": f"Error loading counties_list.json: {str(e)}"}), 500
 
     headers = {"x-api-key": API_KEY}
     election_data = defaultdict(dict)
@@ -60,6 +64,7 @@ def all_results():
             try:
                 res = requests.get(url, headers=headers, timeout=10)
                 if res.status_code != 200:
+                    print(f"[{year}] Failed: {state_abbr} - {county_name} — Status {res.status_code}")
                     continue
 
                 root = ET.fromstring(res.text)
@@ -76,15 +81,18 @@ def all_results():
                         break
 
             except Exception as e:
-                continue  # Optionally log: print(f"Error for {state_abbr}-{county_name}-{year}: {e}")
+                print(f"[{year}] Exception for {state_abbr} - {county_name}: {str(e)}")
+                continue
 
-    # Convert to JSON and return as download
-    output = BytesIO()
-    output.write(json.dumps(election_data, indent=2).encode("utf-8"))
-    output.seek(0)
-    return send_file(output, mimetype="application/json", as_attachment=True, download_name="all_election_results.json")
+    try:
+        output = BytesIO()
+        output.write(json.dumps(election_data, indent=2).encode("utf-8"))
+        output.seek(0)
+        return send_file(output, mimetype="application/json", as_attachment=True, download_name="all_election_results.json")
+    except Exception as e:
+        return jsonify({"error": f"Error creating file: {str(e)}"}), 500
 
-# Helper for state name to postal abbreviation
+# Mapping for state names to abbreviations
 state_to_abbr = {
     "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
     "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE", "Florida": "FL", "Georgia": "GA",
