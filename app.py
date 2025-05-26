@@ -52,7 +52,7 @@ def all_results():
     election_data = defaultdict(dict)
 
     for year, date in [("2020", "2020-11-03"), ("2024", "2024-11-05")]:
-        for entry in counties:
+        for entry in counties[:5]:
             state_name = entry["State"]
             county_name = entry["County"]
             state_abbr = state_to_abbr.get(state_name)
