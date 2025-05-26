@@ -1,7 +1,5 @@
 flask
-requests
-Flask
-Flask-SocketIO
+flask-socketio
 aiohttp
 eventlet
 gunicorn
