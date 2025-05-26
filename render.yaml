@@ -1,8 +1,7 @@
 services:
   - type: web
-    name: election-results-api
+    name: election-results-socketio
     env: python
-    plan: free  # or standard/professional if needed
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --timeout 600
+    startCommand: gunicorn app:app -k eventlet --timeout 600
     autoDeploy: true
