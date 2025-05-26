@@ -1,57 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Download All Election Results</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
-      background: #f4f4f4;
-    }
-    button {
-      font-size: 1rem;
-      padding: 0.75rem 1.25rem;
-      margin: 1rem 0;
-      cursor: pointer;
-    }
-    #status {
-      margin-top: 1rem;
-      font-family: monospace;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Election Results</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 </head>
 <body>
-  <h1>Download All County-Level Election Results</h1>
-  <p>This will fetch 2020 and 2024 presidential election results for every state and county and save as a local JSON file.</p>
+    <h1>Election Results</h1>
+    <button onclick="startProcessing()">Start Processing</button>
+    <div id="results"></div>
 
-  <button onclick="downloadAllResults()">Download All Results (2020 + 2024)</button>
-  <div id="status">Status: Idle</div>
+    <script>
+        const socket = io();
 
-  <script>
-    async function downloadAllResults() {
-      const statusDiv = document.getElementById("status");
-      statusDiv.textContent = "Status: Fetching data... this may take a few minutes.";
+        function startProcessing() {
+            socket.emit('start_processing');
+        }
 
-      try {
-        const response = await fetch("/all-results");
-        if (!response.ok) throw new Error("Failed to fetch results from server");
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "all_election_results.json";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-
-        statusDiv.textContent = "Status: Download complete.";
-      } catch (err) {
-        console.error(err);
-        statusDiv.textContent = "Status: Error fetching data.";
-      }
-    }
-  </script>
+        socket.on('county_result', function(data) {
+            const div = document.getElementById('results');
+            const countyDiv = document.createElement('div');
+            countyDiv.innerHTML = `<h2>${data.county}, ${data.state}</h2>`;
+            const ul = document.createElement('ul');
+            data.results.forEach(candidate => {
+                const li = document.createElement('li');
+                li.textContent = `${candidate.name} (${candidate.party}): ${candidate.votes} votes`;
+                ul.appendChild(li);
+            });
+            countyDiv.appendChild(ul);
+            div.appendChild(countyDiv);
+        });
+    </script>
 </body>
 </html>
