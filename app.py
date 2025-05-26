@@ -45,7 +45,7 @@ def results():
 @app.route("/all-results")
 def all_results():
     state_filter = request.args.get("state")
-    max_count = int(request.args.get("limit", 0))
+    max_count = int(request.args.get("limit", 10))  # Default limit to prevent overload
 
     with open(os.path.join("static", "counties_list.json"), "r") as f:
         counties = json.load(f)
@@ -66,13 +66,13 @@ def all_results():
     return send_file(output, mimetype="application/json", as_attachment=True, download_name="all_election_results.json")
 
 async def fetch_all_results(counties):
-    semaphore = asyncio.Semaphore(10)
     headers = {"x-api-key": API_KEY}
     election_data = defaultdict(dict)
+    semaphore = asyncio.Semaphore(3)  # limit to 3 concurrent fetches
 
     async with aiohttp.ClientSession(headers=headers) as session:
-        tasks = []
         for year, date in [("2020", "2020-11-03"), ("2024", "2024-11-05")]:
+            tasks = []
             for entry in counties:
                 state_name = entry["State"]
                 county_name = entry["County"]
@@ -82,18 +82,26 @@ async def fetch_all_results(counties):
                 url = f"{BASE_URL}/{date}?statepostal={state_abbr}&raceTypeId=G&raceId=0&level=ru"
                 tasks.append(fetch_one(session, semaphore, url, state_abbr, county_name, year, election_data))
 
-        await asyncio.gather(*tasks)
+                if len(tasks) >= 10:  # break batches to avoid memory spikes
+                    await asyncio.gather(*tasks)
+                    tasks = []
+            if tasks:
+                await asyncio.gather(*tasks)
     return election_data
 
 async def fetch_one(session, semaphore, url, state_abbr, county_name, year, election_data):
     try:
         async with semaphore:
-            async with session.get(url, timeout=10) as resp:
+            async with session.get(url, timeout=15) as resp:
                 if resp.status != 200:
-                    print(f"Failed [{resp.status}]: {url}")
+                    print(f"[{year}] HTTP {resp.status} for {county_name} in {state_abbr}")
                     return
                 text = await resp.text()
-                root = ET.fromstring(text)
+                try:
+                    root = ET.fromstring(text)
+                except ET.ParseError as e:
+                    print(f"[{year}] XML parse error for {county_name} in {state_abbr}: {e}")
+                    return
                 for ru in root.iter("ReportingUnit"):
                     if ru.attrib.get("Name") == county_name.replace(" County", ""):
                         results = []
@@ -106,9 +114,8 @@ async def fetch_one(session, semaphore, url, state_abbr, county_name, year, elec
                         election_data[year].setdefault(state_abbr, {})[county_name] = results
                         break
     except Exception as e:
-        print(f"Error fetching {state_abbr} - {county_name} ({year}): {e}")
+        print(f"[{year}] Exception fetching {county_name} in {state_abbr}: {e}")
 
-# Mapping for state names to abbreviations
 state_to_abbr = {
     "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
     "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE", "Florida": "FL", "Georgia": "GA",
