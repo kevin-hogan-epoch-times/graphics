@@ -37,7 +37,7 @@ def batch():
     with open(os.path.join("static", "counties_list.json"), "r") as f:
         counties = json.load(f)
 
-    selected = counties[offset:offset+limit]
+    selected = counties[offset:offset + limit]
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -48,8 +48,12 @@ def batch():
     output.write(json.dumps(result_data, indent=2).encode("utf-8"))
     output.seek(0)
 
-    return send_file(output, mimetype="application/json", as_attachment=True,
-                     download_name=f"results_{offset}_to_{offset+limit-1}.json")
+    return send_file(
+        output,
+        mimetype="application/json",
+        as_attachment=True,
+        download_name=f"results_{offset}_to_{offset + limit - 1}.json"
+    )
 
 async def fetch_counties(counties):
     headers = {"x-api-key": API_KEY}
@@ -57,8 +61,8 @@ async def fetch_counties(counties):
     semaphore = asyncio.Semaphore(3)
 
     async with aiohttp.ClientSession(headers=headers) as session:
-        tasks = []
         for year, date in [("2020", "2020-11-03"), ("2024", "2024-11-05")]:
+            tasks = []
             for entry in counties:
                 state = entry["State"]
                 county = entry["County"]
@@ -66,8 +70,9 @@ async def fetch_counties(counties):
                 if not abbr:
                     continue
                 url = f"{BASE_URL}/{date}?statepostal={abbr}&raceTypeId=G&raceId=0&level=ru"
-                tasks.append(fetch_one(session, semaphore, url, abbr, county, year, results))
-            await asyncio.gather(*tasks)
+                task = fetch_one(session, semaphore, url, abbr, county, year, results)
+                tasks.append(task)
+            await asyncio.gather(*tasks)  # fresh list per year
     return results
 
 async def fetch_one(session, semaphore, url, abbr, county, year, results):
