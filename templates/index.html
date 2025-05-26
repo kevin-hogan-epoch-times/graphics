@@ -1,25 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Download County Results</title>
+  <meta charset="UTF-8">
+  <title>Election Download</title>
 </head>
 <body>
-    <h1>Download Election Results (10 Counties per Click)</h1>
-    <button onclick="downloadBatch()">Download Next Batch</button>
+  <h1>Download County Election Results (10 at a time)</h1>
+  <button onclick="downloadBatch()">Download Next Batch</button>
 
-    <script>
-        let offset = 0;
-        const limit = 10;
+  <script>
+    let offset = 0;
+    const limit = 10;
 
-        function downloadBatch() {
-            const url = `/batch?offset=${offset}&limit=${limit}`;
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `results_${offset}_to_${offset + limit - 1}.json`;
-            a.click();
-            offset += limit;
-        }
-    </script>
+    function downloadBatch() {
+      const url = `/batch?offset=${offset}&limit=${limit}`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `results_${offset}_to_${offset + limit - 1}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      offset += limit;
+    }
+  </script>
 </body>
 </html>
+
