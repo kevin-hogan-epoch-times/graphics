@@ -2,34 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Election Results</title>
-    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <title>Download County Results</title>
 </head>
 <body>
-    <h1>Election Results</h1>
-    <button onclick="startProcessing()">Start Processing</button>
-    <div id="results"></div>
+    <h1>Download Election Results (10 Counties per Click)</h1>
+    <button onclick="downloadBatch()">Download Next Batch</button>
 
     <script>
-        const socket = io();
+        let offset = 0;
+        const limit = 10;
 
-        function startProcessing() {
-            socket.emit('start_processing');
+        function downloadBatch() {
+            const url = `/batch?offset=${offset}&limit=${limit}`;
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `results_${offset}_to_${offset + limit - 1}.json`;
+            a.click();
+            offset += limit;
         }
-
-        socket.on('county_result', function(data) {
-            const div = document.getElementById('results');
-            const countyDiv = document.createElement('div');
-            countyDiv.innerHTML = `<h2>${data.county}, ${data.state}</h2>`;
-            const ul = document.createElement('ul');
-            data.results.forEach(candidate => {
-                const li = document.createElement('li');
-                li.textContent = `${candidate.name} (${candidate.party}): ${candidate.votes} votes`;
-                ul.appendChild(li);
-            });
-            countyDiv.appendChild(ul);
-            div.appendChild(countyDiv);
-        });
     </script>
 </body>
 </html>
