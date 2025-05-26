@@ -45,15 +45,15 @@ def results():
 @app.route("/all-results")
 def all_results():
     state_filter = request.args.get("state")
-    max_count = int(request.args.get("limit", 10))  # Default limit to prevent overload
+    max_count = request.args.get("limit")
 
     with open(os.path.join("static", "counties_list.json"), "r") as f:
         counties = json.load(f)
 
     if state_filter:
         counties = [c for c in counties if state_to_abbr.get(c["State"]) == state_filter.upper()]
-    if max_count > 0:
-        counties = counties[:max_count]
+    if max_count:
+        counties = counties[:int(max_count)]
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
