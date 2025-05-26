@@ -9,7 +9,7 @@ import os
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode='eventlet')
 
-API_KEY = "your_api_key_here"
+API_KEY = "4uwfiazjez9koo7aju9ig4zxhr"
 BASE_URL = "https://api.ap.org/v2/elections"
 
 state_to_abbr = {
