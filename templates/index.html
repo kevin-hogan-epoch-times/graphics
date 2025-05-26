@@ -2,110 +2,56 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>2020 County Results</title>
+  <title>Download All Election Results</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 2rem;
       background: #f4f4f4;
     }
-    select, button {
+    button {
       font-size: 1rem;
-      padding: 0.5rem;
-      margin-right: 1rem;
+      padding: 0.75rem 1.25rem;
+      margin: 1rem 0;
+      cursor: pointer;
     }
-    .results {
-      margin-top: 2rem;
-      background: white;
-      padding: 1rem;
-      border-radius: 5px;
+    #status {
+      margin-top: 1rem;
+      font-family: monospace;
     }
   </style>
 </head>
 <body>
-  <h1>2020 Presidential Election Results</h1>
+  <h1>Download All County-Level Election Results</h1>
+  <p>This will fetch 2020 and 2024 presidential election results for every state and county and save as a local JSON file.</p>
 
-  <label for="state">State:</label>
-  <select id="state">
-    <option value="">Select a state</option>
-  </select>
-
-  <label for="county">County:</label>
-  <select id="county">
-    <option>Select a state</option>
-  </select>
-
-  <button onclick="loadResults()">Show Results</button>
-
-  <div class="results" id="results"></div>
+  <button onclick="downloadAllResults()">Download All Results (2020 + 2024)</button>
+  <div id="status">Status: Idle</div>
 
   <script>
-    const stateSelect = document.getElementById("state");
-    const countySelect = document.getElementById("county");
+    async function downloadAllResults() {
+      const statusDiv = document.getElementById("status");
+      statusDiv.textContent = "Status: Fetching data... this may take a few minutes.";
 
-    const stateToAbbr = {
-      "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
-      "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE", "Florida": "FL", "Georgia": "GA",
-      "Hawai?i": "HI", "Idaho": "ID", "Illinois": "IL", "Indiana": "IN", "Iowa": "IA",
-      "Kansas": "KS", "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD",
-      "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS", "Missouri": "MO",
-      "Montana": "MT", "Nebraska": "NE", "Nevada": "NV", "New Hampshire": "NH", "New Jersey": "NJ",
-      "New Mexico": "NM", "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH",
-      "Oklahoma": "OK", "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC",
-      "South Dakota": "SD", "Tennessee": "TN", "Texas": "TX", "Utah": "UT", "Vermont": "VT",
-      "Virginia": "VA", "Washington": "WA", "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY"
-    };
+      try {
+        const response = await fetch("/all-results");
+        if (!response.ok) throw new Error("Failed to fetch results from server");
 
-    let countiesByState = {};
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "all_election_results.json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
 
-    fetch("/static/counties_list.json")
-      .then(response => response.json())
-      .then(data => {
-        data.forEach(({ County, State }) => {
-          const abbr = stateToAbbr[State];
-          if (!abbr) return;
-          if (!countiesByState[abbr]) countiesByState[abbr] = [];
-          countiesByState[abbr].push(County);
-        });
-
-        // Populate state dropdown
-        Object.keys(countiesByState).sort().forEach(abbr => {
-          const opt = document.createElement("option");
-          opt.value = abbr;
-          opt.textContent = abbr;
-          stateSelect.appendChild(opt);
-        });
-      });
-
-    stateSelect.addEventListener("change", () => {
-      const state = stateSelect.value;
-      const counties = countiesByState[state] || [];
-      countySelect.innerHTML = counties.map(c => `<option>${c}</option>`).join("");
-    });
-
-      async function loadResults() {
-        const state = stateSelect.value;
-        let county = countySelect.value;
-
-        // Remove 'County' from the county name if present
-        county = county.replace(/ County$/, '');
-
-        const res = await fetch(`/results?state=${state}&county=${county}`);
-        const data = await res.json();
-
-        const resultsDiv = document.getElementById("results");
-        if (data.error) {
-          resultsDiv.innerHTML = `<p>${data.error}</p>`;
-          return;
-        }
-
-        resultsDiv.innerHTML = `<h3>${data.county} County, ${data.state}</h3>`;
-        data.results.forEach(c => {
-          resultsDiv.innerHTML += `<p>${c.name} (${c.party}) — ${c.votes} votes</p>`;
-        });
+        statusDiv.textContent = "Status: Download complete.";
+      } catch (err) {
+        console.error(err);
+        statusDiv.textContent = "Status: Error fetching data.";
       }
-
+    }
   </script>
 </body>
 </html>
-
