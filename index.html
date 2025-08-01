@@ -1,23 +1,63 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>U.S. Debt Clock – Demo</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-      body {
-        font-family: system-ui, Roboto, Arial, sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        margin: 0;
-        background: #B8FFB0;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="ntd-debt-clock"></div>
-    <script src="https://ntdservices-debt-clock.hf.space/embed.js" defer></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graphics Projects</title>
+  <style>
+    :root {
+      --accent: #134e9b;
+      --bg: #f9f9fb;
+      --text: #222;
+      --radius: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 600px;
+      padding: 2em;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5em;
+      color: var(--accent);
+    }
+
+    p {
+      font-size: 1.2rem;
+      color: #555;
+    }
+
+    footer {
+      margin-top: 3em;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Graphics Projects</h1>
+    <footer>
+      &copy; 2025 Kevin Hogan
+    </footer>
+  </div>
+</body>
 </html>
