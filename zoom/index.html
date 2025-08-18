@@ -53,17 +53,22 @@
     }
 
     function fitToScreen(){
-      const vw = viewport.clientWidth, vh = viewport.clientHeight;
-      const sx = vw / state.imgW, sy = vh / state.imgH;
-      state.scale = Math.min(sx, sy);
-      state.minScale = state.scale * 0.5;
-      state.maxScale = Math.max(20, state.scale * 10);
-      const sw = state.imgW * state.scale;
-      const sh = state.imgH * state.scale;
-      state.tx = (vw - sw) / 2;
-      state.ty = (vh - sh) / 2;
-      applyTransform();
-    }
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+  // pick the smaller ratio so the whole image is visible
+  const sx = vw / state.imgW, sy = vh / state.imgH;
+  state.scale = Math.min(sx, sy);
+
+  state.minScale = state.scale * 0.5;
+  state.maxScale = Math.max(20, state.scale * 10);
+
+  const sw = state.imgW * state.scale;
+  const sh = state.imgH * state.scale;
+  state.tx = (vw - sw) / 2;  // center horizontally
+  state.ty = (vh - sh) / 2;  // center vertically
+
+  applyTransform();
+}
+
 
     function clampTranslation(){
       const vw = viewport.clientWidth, vh = viewport.clientHeight;
