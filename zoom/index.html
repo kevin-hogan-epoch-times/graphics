@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fullscreen Zoomable Image</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: black;
+    }
+    #viewport {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      touch-action: none; /* we handle gestures */
+    }
+    #img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      max-width: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewport">
+    <img id="img" src="background.png" alt="Background" />
+  </div>
+
+  <script>
+  (function(){
+    const viewport = document.getElementById('viewport');
+    const img = document.getElementById('img');
+
+    let state = {
+      ready: false,
+      imgW: 0, imgH: 0,
+      scale: 1,
+      minScale: 1,
+      maxScale: 20,
+      tx: 0, ty: 0
+    };
+
+    function applyTransform(){
+      img.style.transform = `translate(${state.tx}px, ${state.ty}px) scale(${state.scale})`;
+    }
+
+    function fitToScreen(){
+      const vw = viewport.clientWidth, vh = viewport.clientHeight;
+      const sx = vw / state.imgW, sy = vh / state.imgH;
+      state.scale = Math.min(sx, sy);
+      state.minScale = state.scale * 0.5;
+      state.maxScale = Math.max(20, state.scale * 10);
+      const sw = state.imgW * state.scale;
+      const sh = state.imgH * state.scale;
+      state.tx = (vw - sw) / 2;
+      state.ty = (vh - sh) / 2;
+      applyTransform();
+    }
+
+    function clampTranslation(){
+      const vw = viewport.clientWidth, vh = viewport.clientHeight;
+      const sw = state.imgW * state.scale, sh = state.imgH * state.scale;
+      if (sw <= vw) state.tx = (vw - sw) / 2;
+      else state.tx = Math.min(0, Math.max(vw - sw, state.tx));
+      if (sh <= vh) state.ty = (vh - sh) / 2;
+      else state.ty = Math.min(0, Math.max(vh - sh, state.ty));
+    }
+
+    function zoomAt(cx, cy, factor){
+      const newScale = Math.min(state.maxScale, Math.max(state.minScale, state.scale * factor));
+      factor = newScale / state.scale;
+      state.tx = cx - (cx - state.tx) * factor;
+      state.ty = cy - (cy - state.ty) * factor;
+      state.scale = newScale;
+      clampTranslation();
+      applyTransform();
+    }
+
+    // load image
+    img.onload = () => {
+      state.imgW = img.naturalWidth;
+      state.imgH = img.naturalHeight;
+      state.ready = true;
+      fitToScreen();
+    };
+
+    // mouse wheel zoom
+    viewport.addEventListener('wheel', e => {
+      if(!state.ready) return;
+      e.preventDefault();
+      const delta = -e.deltaY;
+      const zoomFactor = Math.exp(delta * 0.0015);
+      zoomAt(e.clientX, e.clientY, zoomFactor);
+    }, { passive:false });
+
+    // double click toggle
+    viewport.addEventListener('dblclick', e => {
+      if(!state.ready) return;
+      const factor = (state.scale <= state.minScale * 1.25) ? 2 : (state.minScale / state.scale);
+      zoomAt(e.clientX, e.clientY, factor);
+    });
+
+    // touch double tap
+    let lastTap = 0, lastPos = null;
+    function isDoubleTap(x,y){
+      const now = Date.now();
+      const okTime = now - lastTap < 300;
+      const okDist = lastPos ? Math.hypot(x-lastPos.x, y-lastPos.y) < 40 : false;
+      lastTap = now; lastPos = {x,y};
+      return okTime && okDist;
+    }
+
+    // pointer events
+    const active = new Map();
+    let dragging = false, last = {x:0,y:0};
+    let pinching = false, prevDist = 0, prevCenter = {x:0,y:0};
+
+    function getCenter(){
+      const pts = Array.from(active.values());
+      return {x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
+    }
+    function getDistance(){
+      const pts = Array.from(active.values());
+      return Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+    }
+
+    viewport.addEventListener('pointerdown', e => {
+      if(!state.ready) return;
+      viewport.setPointerCapture(e.pointerId);
+      active.set(e.pointerId, {x:e.clientX, y:e.clientY});
+
+      if(active.size === 1){
+        dragging = true; last.x = e.clientX; last.y = e.clientY;
+        if(e.pointerType==='touch' && isDoubleTap(e.clientX, e.clientY)){
+          const factor = (state.scale <= state.minScale * 1.25)?2:(state.minScale/state.scale);
+          zoomAt(e.clientX,e.clientY,factor);
+          dragging=false; active.clear();
+        }
+      } else if(active.size === 2){
+        pinching = true; dragging = false;
+        prevCenter = getCenter();
+        prevDist = getDistance();
+      }
+    });
+
+    viewport.addEventListener('pointermove', e => {
+      if(!state.ready) return;
+      if(!active.has(e.pointerId)) return;
+      active.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(pinching && active.size===2){
+        const center = getCenter();
+        const dist = getDistance();
+        if(prevDist>0){
+          const factor = dist/prevDist;
+          const newScale = Math.min(state.maxScale, Math.max(state.minScale, state.scale*factor));
+          const eff = newScale/state.scale;
+          state.tx = center.x-(center.x-state.tx)*eff+(center.x-prevCenter.x);
+          state.ty = center.y-(center.y-state.ty)*eff+(center.y-prevCenter.y);
+          state.scale = newScale;
+          clampTranslation();
+          applyTransform();
+        }
+        prevCenter=center; prevDist=dist;
+      } else if(dragging && active.size===1){
+        const dx=e.clientX-last.x, dy=e.clientY-last.y;
+        state.tx+=dx; state.ty+=dy;
+        last.x=e.clientX; last.y=e.clientY;
+        clampTranslation(); applyTransform();
+      }
+    });
+
+    function endPointer(e){
+      if(active.has(e.pointerId)) active.delete(e.pointerId);
+      if(active.size<2){ pinching=false; prevDist=0; }
+      if(active.size===0){ dragging=false; }
+    }
+    viewport.addEventListener('pointerup', endPointer);
+    viewport.addEventListener('pointercancel', endPointer);
+    viewport.addEventListener('pointerleave', endPointer);
+
+  })();
+  </script>
+</body>
+</html>
