@@ -41,10 +41,72 @@
   let offsetX = 0;
   let offsetY = 0;
 
+  // --- MARKERS (pins that stay at fixed world coords and constant screen size) ---
+  const markers = []; // { wx, wy }
+  const markerIcon = new Image();
+  markerIcon.src = "marker.png"; // optional: small icon (e.g., 32x32). Fallback draws a dot if missing.
+  const MARKER_SIZE_DESKTOP = 28; // px
+  const MARKER_SIZE_TOUCH = 36;   // px
+
+  function addMarkerAtScreen(sx, sy) {
+    const w = screenToWorld(sx, sy);
+    markers.push({ wx: w.x, wy: w.y });
+    draw();
+  }
+
+  function drawMarkers() {
+    const isTouch = lastPointerType === 'touch';
+    const size = isTouch ? MARKER_SIZE_TOUCH : MARKER_SIZE_DESKTOP;
+
+    for (const m of markers) {
+      const sx = offsetX + m.wx * scale;
+      const sy = offsetY + m.wy * scale;
+
+      if (markerIcon.complete && markerIcon.naturalWidth > 0) {
+        ctx.drawImage(markerIcon, sx - size/2, sy - size/2, size, size);
+      } else {
+        // Fallback: crisp circle with white stroke and red fill
+        ctx.beginPath();
+        ctx.arc(sx, sy, size/2, 0, Math.PI * 2);
+        ctx.fillStyle = '#e53935';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+      }
+    }
+  }
+
+  function removeNearestMarkerAtScreen(sx, sy, maxPx = 24) {
+    if (!markers.length) return false;
+    let bestIdx = -1;
+    let bestD = Infinity;
+    for (let i = 0; i < markers.length; i++) {
+      const m = markers[i];
+      const mx = offsetX + m.wx * scale;
+      const my = offsetY + m.wy * scale;
+      const d = Math.hypot(mx - sx, my - sy);
+      if (d < bestD) { bestD = d; bestIdx = i; }
+    }
+    if (bestD <= maxPx) {
+      markers.splice(bestIdx, 1);
+      draw();
+      return true;
+    }
+    return false;
+  }
+
   // Multi-pointer (mouse/touch) state for intuitive pinch-zoom
   const pointers = new Map(); // pointerId -> {x,y,prevX,prevY}
   let lastMid = null;         // previous two-finger midpoint (screen coords)
   let lastDist = null;        // previous two-finger distance (screen)
+  let lastPointerType = 'mouse';
+
+  // Double-tap support for touch to add a marker
+  let lastTapTime = 0;
+  let lastTapPos = { x: 0, y: 0 };
+  const DOUBLE_TAP_MS = 300;
+  const DOUBLE_TAP_PX = 30;
 
   function setCanvasSize() {
     canvas.width  = window.innerWidth;
@@ -101,6 +163,7 @@
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(img, offsetX, offsetY, img.naturalWidth * scale, img.naturalHeight * scale);
+    drawMarkers();
   }
 
   function screenToWorld(sx, sy) {
@@ -117,8 +180,25 @@
 
   // ---- Pointer events (unified mouse + touch) ----
   canvas.addEventListener('pointerdown', (e) => {
+    lastPointerType = e.pointerType || lastPointerType;
     canvas.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, prevX: e.clientX, prevY: e.clientY });
+
+    // Double-tap detection for touch to add marker
+    if (e.pointerType === 'touch' && pointers.size === 1) {
+      const now = performance.now();
+      const dt = now - lastTapTime;
+      const dp = Math.hypot(e.clientX - lastTapPos.x, e.clientY - lastTapPos.y);
+
+      if (dt < DOUBLE_TAP_MS && dp < DOUBLE_TAP_PX) {
+        // Double tap detected -> add marker
+        addMarkerAtScreen(e.clientX, e.clientY);
+        lastTapTime = 0; // reset
+      } else {
+        lastTapTime = now;
+        lastTapPos = { x: e.clientX, y: e.clientY };
+      }
+    }
 
     if (pointers.size === 2) {
       // Initialize pinch reference
@@ -130,6 +210,7 @@
 
   canvas.addEventListener('pointermove', (e) => {
     if (!pointers.has(e.pointerId)) return;
+    lastPointerType = e.pointerType || lastPointerType;
 
     // Update this pointer's current position
     const p = pointers.get(e.pointerId);
@@ -157,7 +238,6 @@
 
         // Scale change
         const zoom = newDist / lastDist;
-        const prevScale = scale;
         scale *= zoom;
         if (scale < minScale) scale = minScale;
 
@@ -201,6 +281,17 @@
   canvas.addEventListener('pointercancel', endPointer);
   canvas.addEventListener('pointerleave', endPointer);
 
+  // Add marker on mouse double-click
+  canvas.addEventListener('dblclick', (e) => {
+    addMarkerAtScreen(e.clientX, e.clientY);
+  });
+
+  // Right-click (or long-press context menu) near a marker removes it
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    removeNearestMarkerAtScreen(e.clientX, e.clientY, 28);
+  });
+
   // ---- Wheel zoom (desktop), anchored at mouse position ----
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -209,7 +300,6 @@
     const mouseY = e.clientY;
 
     const world = screenToWorld(mouseX, mouseY);
-    const prevScale = scale;
 
     if (e.deltaY < 0) scale *= zoomFactor;
     else scale /= zoomFactor;
