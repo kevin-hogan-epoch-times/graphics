@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Fullscreen Zoomable Image</title>
+  <title>Fullscreen Zoomable Background</title>
   <style>
     html, body {
       margin: 0;
@@ -16,12 +16,15 @@
       position: fixed;
       inset: 0;
       overflow: hidden;
-      touch-action: none; /* we handle gestures */
+      touch-action: none;
     }
     #img {
       position: absolute;
       top: 0;
       left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
       transform-origin: 0 0;
       max-width: none;
       user-select: none;
@@ -40,41 +43,33 @@
     const img = document.getElementById('img');
 
     let state = {
-      ready: false,
-      imgW: 0, imgH: 0,
       scale: 1,
       minScale: 1,
       maxScale: 20,
-      tx: 0, ty: 0
+      tx: 0, ty: 0,
+      imgW: 0, imgH: 0
     };
 
     function applyTransform(){
       img.style.transform = `translate(${state.tx}px, ${state.ty}px) scale(${state.scale})`;
     }
 
-    function fitToScreen(){
-  const vw = viewport.clientWidth, vh = viewport.clientHeight;
-  // pick the smaller ratio so the whole image is visible
-  const sx = vw / state.imgW, sy = vh / state.imgH;
-  state.scale = Math.min(sx, sy);
-
-  state.minScale = state.scale * 0.5;
-  state.maxScale = Math.max(20, state.scale * 10);
-
-  const sw = state.imgW * state.scale;
-  const sh = state.imgH * state.scale;
-  state.tx = (vw - sw) / 2;  // center horizontally
-  state.ty = (vh - sh) / 2;  // center vertically
-
-  applyTransform();
-}
-
+    function updateMinScale(){
+      const vw = viewport.clientWidth, vh = viewport.clientHeight;
+      const sx = vw / state.imgW;
+      const sy = vh / state.imgH;
+      // pick the larger ratio so the image always covers the screen
+      state.minScale = Math.max(sx, sy);
+    }
 
     function clampTranslation(){
       const vw = viewport.clientWidth, vh = viewport.clientHeight;
-      const sw = state.imgW * state.scale, sh = state.imgH * state.scale;
+      const sw = state.imgW * state.scale;
+      const sh = state.imgH * state.scale;
+
       if (sw <= vw) state.tx = (vw - sw) / 2;
       else state.tx = Math.min(0, Math.max(vw - sw, state.tx));
+
       if (sh <= vh) state.ty = (vh - sh) / 2;
       else state.ty = Math.min(0, Math.max(vh - sh, state.ty));
     }
@@ -89,26 +84,27 @@
       applyTransform();
     }
 
-    // load image
+    // load image and set initial fit
     img.onload = () => {
       state.imgW = img.naturalWidth;
       state.imgH = img.naturalHeight;
-      state.ready = true;
-      fitToScreen();
+      updateMinScale();
+      state.scale = state.minScale;
+      state.tx = 0;
+      state.ty = 0;
+      applyTransform();
     };
 
     // mouse wheel zoom
     viewport.addEventListener('wheel', e => {
-      if(!state.ready) return;
       e.preventDefault();
       const delta = -e.deltaY;
       const zoomFactor = Math.exp(delta * 0.0015);
       zoomAt(e.clientX, e.clientY, zoomFactor);
     }, { passive:false });
 
-    // double click toggle
+    // double click toggle zoom
     viewport.addEventListener('dblclick', e => {
-      if(!state.ready) return;
       const factor = (state.scale <= state.minScale * 1.25) ? 2 : (state.minScale / state.scale);
       zoomAt(e.clientX, e.clientY, factor);
     });
@@ -123,7 +119,7 @@
       return okTime && okDist;
     }
 
-    // pointer events
+    // pointer events for pan + pinch
     const active = new Map();
     let dragging = false, last = {x:0,y:0};
     let pinching = false, prevDist = 0, prevCenter = {x:0,y:0};
@@ -138,10 +134,8 @@
     }
 
     viewport.addEventListener('pointerdown', e => {
-      if(!state.ready) return;
       viewport.setPointerCapture(e.pointerId);
       active.set(e.pointerId, {x:e.clientX, y:e.clientY});
-
       if(active.size === 1){
         dragging = true; last.x = e.clientX; last.y = e.clientY;
         if(e.pointerType==='touch' && isDoubleTap(e.clientX, e.clientY)){
@@ -157,7 +151,6 @@
     });
 
     viewport.addEventListener('pointermove', e => {
-      if(!state.ready) return;
       if(!active.has(e.pointerId)) return;
       active.set(e.pointerId,{x:e.clientX,y:e.clientY});
       if(pinching && active.size===2){
@@ -190,6 +183,16 @@
     viewport.addEventListener('pointerup', endPointer);
     viewport.addEventListener('pointercancel', endPointer);
     viewport.addEventListener('pointerleave', endPointer);
+
+    // recompute on resize
+    window.addEventListener('resize', () => {
+      updateMinScale();
+      if(state.scale < state.minScale){
+        state.scale = state.minScale;
+        state.tx = 0; state.ty = 0;
+        applyTransform();
+      }
+    });
 
   })();
   </script>
