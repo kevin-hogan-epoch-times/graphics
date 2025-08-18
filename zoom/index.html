@@ -1,199 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Fullscreen Zoomable Background</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      overflow: hidden;
-      background: black;
-    }
-    #viewport {
-      position: fixed;
-      inset: 0;
-      overflow: hidden;
-      touch-action: none;
-    }
-   #img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform-origin: 0 0;
-  max-width: none;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zoom & Pan Fullscreen Image</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: black;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none; /* prevent touch scrolling */
+    cursor: grab;
+  }
+  canvas:active {
+    cursor: grabbing;
+  }
+</style>
 </head>
 <body>
-  <div id="viewport">
-    <img id="img" src="background.png" alt="Background" />
-  </div>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 
-  <script>
-  (function(){
-    const viewport = document.getElementById('viewport');
-    const img = document.getElementById('img');
+let img = new Image();
+img.src = "map1 (1).png"; // <-- use your uploaded filename
+let scale = 1, minScale = 1;
+let offsetX = 0, offsetY = 0;
+let isDragging = false;
+let dragStartX, dragStartY;
 
-    let state = {
-      scale: 1,
-      minScale: 1,
-      maxScale: 20,
-      tx: 0, ty: 0,
-      imgW: 0, imgH: 0
-    };
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  fitImage();
+  draw();
+}
 
-    function applyTransform(){
-      img.style.transform = `translate(${state.tx}px, ${state.ty}px) scale(${state.scale})`;
-    }
+function fitImage() {
+  if (!img.complete) return;
+  const scaleX = canvas.width / img.width;
+  const scaleY = canvas.height / img.height;
+  minScale = Math.max(scaleX, scaleY); // cover screen fully
+  if (scale < minScale) scale = minScale;
+  constrain();
+}
 
-    function updateMinScale(){
-      const vw = viewport.clientWidth, vh = viewport.clientHeight;
-      const sx = vw / state.imgW;
-      const sy = vh / state.imgH;
-      // pick the larger ratio so the image always covers the screen
-      state.minScale = Math.max(sx, sy);
-    }
+function constrain() {
+  const imgW = img.width * scale;
+  const imgH = img.height * scale;
 
-    function clampTranslation(){
-      const vw = viewport.clientWidth, vh = viewport.clientHeight;
-      const sw = state.imgW * state.scale;
-      const sh = state.imgH * state.scale;
+  const minX = canvas.width - imgW;
+  const minY = canvas.height - imgH;
 
-      if (sw <= vw) state.tx = (vw - sw) / 2;
-      else state.tx = Math.min(0, Math.max(vw - sw, state.tx));
+  if (offsetX > 0) offsetX = 0;
+  if (offsetY > 0) offsetY = 0;
+  if (offsetX < minX) offsetX = minX;
+  if (offsetY < minY) offsetY = minY;
+}
 
-      if (sh <= vh) state.ty = (vh - sh) / 2;
-      else state.ty = Math.min(0, Math.max(vh - sh, state.ty));
-    }
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, offsetX, offsetY, img.width * scale, img.height * scale);
+}
 
-    function zoomAt(cx, cy, factor){
-      const newScale = Math.min(state.maxScale, Math.max(state.minScale, state.scale * factor));
-      factor = newScale / state.scale;
-      state.tx = cx - (cx - state.tx) * factor;
-      state.ty = cy - (cy - state.ty) * factor;
-      state.scale = newScale;
-      clampTranslation();
-      applyTransform();
-    }
-
-    // load image and set initial fit
 img.onload = () => {
-  state.imgW = img.naturalWidth;
-  state.imgH = img.naturalHeight;
-  updateMinScale();
-  state.scale = state.minScale;
-  state.tx = (viewport.clientWidth - state.imgW * state.scale) / 2;
-  state.ty = (viewport.clientHeight - state.imgH * state.scale) / 2;
-  applyTransform();
+  resizeCanvas();
 };
 
+window.addEventListener('resize', resizeCanvas);
 
-    // mouse wheel zoom
-    viewport.addEventListener('wheel', e => {
-      e.preventDefault();
-      const delta = -e.deltaY;
-      const zoomFactor = Math.exp(delta * 0.0015);
-      zoomAt(e.clientX, e.clientY, zoomFactor);
-    }, { passive:false });
+canvas.addEventListener('mousedown', e => {
+  isDragging = true;
+  dragStartX = e.clientX - offsetX;
+  dragStartY = e.clientY - offsetY;
+});
+canvas.addEventListener('mouseup', () => isDragging = false);
+canvas.addEventListener('mouseleave', () => isDragging = false);
+canvas.addEventListener('mousemove', e => {
+  if (isDragging) {
+    offsetX = e.clientX - dragStartX;
+    offsetY = e.clientY - dragStartY;
+    constrain();
+    draw();
+  }
+});
 
-    // double click toggle zoom
-    viewport.addEventListener('dblclick', e => {
-      const factor = (state.scale <= state.minScale * 1.25) ? 2 : (state.minScale / state.scale);
-      zoomAt(e.clientX, e.clientY, factor);
-    });
+// Zoom with wheel
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const zoomFactor = 1.1;
+  const mouseX = e.clientX;
+  const mouseY = e.clientY;
 
-    // touch double tap
-    let lastTap = 0, lastPos = null;
-    function isDoubleTap(x,y){
-      const now = Date.now();
-      const okTime = now - lastTap < 300;
-      const okDist = lastPos ? Math.hypot(x-lastPos.x, y-lastPos.y) < 40 : false;
-      lastTap = now; lastPos = {x,y};
-      return okTime && okDist;
+  const wx = (mouseX - offsetX) / scale;
+  const wy = (mouseY - offsetY) / scale;
+
+  if (e.deltaY < 0) {
+    scale *= zoomFactor;
+  } else {
+    scale /= zoomFactor;
+  }
+
+  if (scale < minScale) scale = minScale;
+
+  offsetX = mouseX - wx * scale;
+  offsetY = mouseY - wy * scale;
+
+  constrain();
+  draw();
+}, { passive: false });
+
+// Touch support
+let lastTouchDist = null;
+let lastTouchX = null, lastTouchY = null;
+
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    lastTouchDist = Math.hypot(dx, dy);
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1 && lastTouchX !== null) {
+    const dx = e.touches[0].clientX - lastTouchX;
+    const dy = e.touches[0].clientY - lastTouchY;
+    offsetX += dx;
+    offsetY += dy;
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+    if (lastTouchDist) {
+      const zoom = dist / lastTouchDist;
+      scale *= zoom;
+      if (scale < minScale) scale = minScale;
     }
+    lastTouchDist = dist;
+  }
+  constrain();
+  draw();
+}, { passive: false });
 
-    // pointer events for pan + pinch
-    const active = new Map();
-    let dragging = false, last = {x:0,y:0};
-    let pinching = false, prevDist = 0, prevCenter = {x:0,y:0};
-
-    function getCenter(){
-      const pts = Array.from(active.values());
-      return {x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2};
-    }
-    function getDistance(){
-      const pts = Array.from(active.values());
-      return Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
-    }
-
-    viewport.addEventListener('pointerdown', e => {
-      viewport.setPointerCapture(e.pointerId);
-      active.set(e.pointerId, {x:e.clientX, y:e.clientY});
-      if(active.size === 1){
-        dragging = true; last.x = e.clientX; last.y = e.clientY;
-        if(e.pointerType==='touch' && isDoubleTap(e.clientX, e.clientY)){
-          const factor = (state.scale <= state.minScale * 1.25)?2:(state.minScale/state.scale);
-          zoomAt(e.clientX,e.clientY,factor);
-          dragging=false; active.clear();
-        }
-      } else if(active.size === 2){
-        pinching = true; dragging = false;
-        prevCenter = getCenter();
-        prevDist = getDistance();
-      }
-    });
-
-    viewport.addEventListener('pointermove', e => {
-      if(!active.has(e.pointerId)) return;
-      active.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(pinching && active.size===2){
-        const center = getCenter();
-        const dist = getDistance();
-        if(prevDist>0){
-          const factor = dist/prevDist;
-          const newScale = Math.min(state.maxScale, Math.max(state.minScale, state.scale*factor));
-          const eff = newScale/state.scale;
-          state.tx = center.x-(center.x-state.tx)*eff+(center.x-prevCenter.x);
-          state.ty = center.y-(center.y-state.ty)*eff+(center.y-prevCenter.y);
-          state.scale = newScale;
-          clampTranslation();
-          applyTransform();
-        }
-        prevCenter=center; prevDist=dist;
-      } else if(dragging && active.size===1){
-        const dx=e.clientX-last.x, dy=e.clientY-last.y;
-        state.tx+=dx; state.ty+=dy;
-        last.x=e.clientX; last.y=e.clientY;
-        clampTranslation(); applyTransform();
-      }
-    });
-
-    function endPointer(e){
-      if(active.has(e.pointerId)) active.delete(e.pointerId);
-      if(active.size<2){ pinching=false; prevDist=0; }
-      if(active.size===0){ dragging=false; }
-    }
-    viewport.addEventListener('pointerup', endPointer);
-    viewport.addEventListener('pointercancel', endPointer);
-    viewport.addEventListener('pointerleave', endPointer);
-
-    // recompute on resize
-    window.addEventListener('resize', () => {
-      updateMinScale();
-      if(state.scale < state.minScale){
-        state.scale = state.minScale;
-        state.tx = 0; state.ty = 0;
-        applyTransform();
-      }
-    });
-
-  })();
-  </script>
+canvas.addEventListener('touchend', e => {
+  if (e.touches.length === 0) {
+    lastTouchX = null;
+    lastTouchY = null;
+    lastTouchDist = null;
+  }
+}, { passive: false });
+</script>
 </body>
 </html>
