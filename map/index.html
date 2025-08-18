@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Commercial-OK War Map (OSM + MapLibre)</title>
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+  html, body, #map { height:100%; margin:0; }
+  #note{
+    position:fixed; left:8px; bottom:8px; z-index:2;
+    background:rgba(0,0,0,.55); color:#eee; padding:6px 10px; border-radius:8px;
+    font:12px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="note">Drag to pan • Wheel/Pinch to zoom • Keep the OSM credit visible</div>
+
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script>
+  // For demos/light use only. For production, replace with your own tiles or a provider
+  // that explicitly allows commercial use under their terms.
+  const OSM_TILES = [
+    "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  ];
+
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: {
+      "version": 8,
+      "sources": {
+        "osm": {
+          "type": "raster",
+          "tiles": OSM_TILES,
+          "tileSize": 256,
+          "attribution": "© OpenStreetMap contributors"
+        }
+      },
+      "layers": [
+        { "id": "osm", "type": "raster", "source": "osm" }
+      ]
+    },
+    center: [31, 49],   // roughly Ukraine
+    zoom: 4,
+    maxZoom: 18,
+    dragRotate: false,
+    pitchWithRotate: false
+  });
+
+  map.addControl(new maplibregl.NavigationControl({ showCompass:false }), 'top-right');
+
+  // —— Example overlay placeholders you can feed with your own GeoJSON ——
+  map.on('load', () => {
+    // Front line (line)
+    map.addSource('frontlines', {
+      type: 'geojson',
+      data: { "type":"FeatureCollection", "features":[] } // <- replace with live data
+    });
+    map.addLayer({
+      id: 'frontlines-line',
+      type: 'line',
+      source: 'frontlines',
+      paint: { 'line-color': '#ff2d20', 'line-width': 2 }
+    });
+
+    // Occupied areas (fill)
+    map.addSource('occupied', {
+      type: 'geojson',
+      data: { "type":"FeatureCollection", "features":[] } // <- replace with polygons
+    });
+    map.addLayer({
+      id: 'occupied-fill',
+      type: 'fill',
+      source: 'occupied',
+      paint: { 'fill-color': '#ff8a8a', 'fill-opacity': 0.35 }
+    });
+
+    // Strikes/incidents (points)
+    map.addSource('incidents', {
+      type: 'geojson',
+      data: { "type":"FeatureCollection", "features":[] } // <- points with properties
+    });
+    map.addLayer({
+      id: 'incidents-circle',
+      type: 'circle',
+      source: 'incidents',
+      paint: { 'circle-radius': 5, 'circle-color': '#1e90ff', 'circle-stroke-width': 1, 'circle-stroke-color': '#003a73' }
+    });
+  });
+</script>
+</body>
+</html>
