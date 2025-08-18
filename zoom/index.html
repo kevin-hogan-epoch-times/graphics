@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+/>
 <title>Zoom & Pan Fullscreen Image</title>
 <style>
   html, body {
@@ -15,154 +18,234 @@
     display: block;
     width: 100%;
     height: 100%;
-    touch-action: none; /* prevent touch scrolling */
+    touch-action: none; /* prevents browser panning/zooming so our gestures work */
     cursor: grab;
   }
-  canvas:active {
-    cursor: grabbing;
-  }
+  canvas:active { cursor: grabbing; }
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
+
 <script>
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
 
-let img = new Image();
-img.src = "background.png"; // <-- use your uploaded filename
-let scale = 1, minScale = 1;
-let offsetX = 0, offsetY = 0;
-let isDragging = false;
-let dragStartX, dragStartY;
+  // Image & view state
+  const img = new Image();
+  img.src = "background.png"; // image file in the same folder as index.html
 
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  fitImage();
-  draw();
-}
+  let scale = 1;
+  let minScale = 1;
+  let offsetX = 0;
+  let offsetY = 0;
 
-function fitImage() {
-  if (!img.complete) return;
-  const scaleX = canvas.width / img.width;
-  const scaleY = canvas.height / img.height;
-  minScale = Math.max(scaleX, scaleY); // cover screen fully
-  if (scale < minScale) scale = minScale;
-  constrain();
-}
+  // Multi-pointer (mouse/touch) state for intuitive pinch-zoom
+  const pointers = new Map(); // pointerId -> {x,y,prevX,prevY}
+  let lastMid = null;         // previous two-finger midpoint (screen coords)
+  let lastDist = null;        // previous two-finger distance (screen)
 
-function constrain() {
-  const imgW = img.width * scale;
-  const imgH = img.height * scale;
+  function setCanvasSize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
 
-  const minX = canvas.width - imgW;
-  const minY = canvas.height - imgH;
+  function fitToScreenCenterOnce() {
+    // Called after image load the first time to perfectly cover and center.
+    const imgW = img.naturalWidth;
+    const imgH = img.naturalHeight;
 
-  if (offsetX > 0) offsetX = 0;
-  if (offsetY > 0) offsetY = 0;
-  if (offsetX < minX) offsetX = minX;
-  if (offsetY < minY) offsetY = minY;
-}
+    const scaleX = canvas.width / imgW;
+    const scaleY = canvas.height / imgH;
 
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(img, offsetX, offsetY, img.width * scale, img.height * scale);
-}
+    minScale = Math.max(scaleX, scaleY); // cover (no black bars)
+    scale = Math.max(scale, minScale);
 
-img.onload = () => {
-  resizeCanvas();
-};
+    const drawW = imgW * scale;
+    const drawH = imgH * scale;
 
-window.addEventListener('resize', resizeCanvas);
+    // center while covering
+    offsetX = (canvas.width  - drawW) / 2;
+    offsetY = (canvas.height - drawH) / 2;
 
-canvas.addEventListener('mousedown', e => {
-  isDragging = true;
-  dragStartX = e.clientX - offsetX;
-  dragStartY = e.clientY - offsetY;
-});
-canvas.addEventListener('mouseup', () => isDragging = false);
-canvas.addEventListener('mouseleave', () => isDragging = false);
-canvas.addEventListener('mousemove', e => {
-  if (isDragging) {
-    offsetX = e.clientX - dragStartX;
-    offsetY = e.clientY - dragStartY;
     constrain();
     draw();
   }
-});
 
-// Zoom with wheel
-canvas.addEventListener('wheel', e => {
-  e.preventDefault();
-  const zoomFactor = 1.1;
-  const mouseX = e.clientX;
-  const mouseY = e.clientY;
-
-  const wx = (mouseX - offsetX) / scale;
-  const wy = (mouseY - offsetY) / scale;
-
-  if (e.deltaY < 0) {
-    scale *= zoomFactor;
-  } else {
-    scale /= zoomFactor;
+  function updateMinScalePreserveView() {
+    // When the canvas size changes, keep current view as much as possible,
+    // but never let the image be smaller than cover.
+    const scaleX = canvas.width  / img.naturalWidth;
+    const scaleY = canvas.height / img.naturalHeight;
+    minScale = Math.max(scaleX, scaleY);
+    if (scale < minScale) scale = minScale;
+    constrain();
   }
 
-  if (scale < minScale) scale = minScale;
+  function constrain() {
+    // Prevent seeing black space. When scale >= minScale, image must cover.
+    const imgW = img.naturalWidth * scale;
+    const imgH = img.naturalHeight * scale;
 
-  offsetX = mouseX - wx * scale;
-  offsetY = mouseY - wy * scale;
+    const minX = canvas.width  - imgW;
+    const minY = canvas.height - imgH;
 
-  constrain();
-  draw();
-}, { passive: false });
-
-// Touch support
-let lastTouchDist = null;
-let lastTouchX = null, lastTouchY = null;
-
-canvas.addEventListener('touchstart', e => {
-  if (e.touches.length === 1) {
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
-  } else if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    lastTouchDist = Math.hypot(dx, dy);
+    if (offsetX > 0) offsetX = 0;
+    if (offsetY > 0) offsetY = 0;
+    if (offsetX < minX) offsetX = minX;
+    if (offsetY < minY) offsetY = minY;
   }
-}, { passive: false });
 
-canvas.addEventListener('touchmove', e => {
-  e.preventDefault();
-  if (e.touches.length === 1 && lastTouchX !== null) {
-    const dx = e.touches[0].clientX - lastTouchX;
-    const dy = e.touches[0].clientY - lastTouchY;
-    offsetX += dx;
-    offsetY += dy;
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
-  } else if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    const dist = Math.hypot(dx, dy);
-    if (lastTouchDist) {
-      const zoom = dist / lastTouchDist;
-      scale *= zoom;
-      if (scale < minScale) scale = minScale;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(img, offsetX, offsetY, img.naturalWidth * scale, img.naturalHeight * scale);
+  }
+
+  function screenToWorld(sx, sy) {
+    return { x: (sx - offsetX) / scale, y: (sy - offsetY) / scale };
+  }
+
+  function midpoint(p1, p2) {
+    return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+  }
+
+  function distance(p1, p2) {
+    return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  }
+
+  // ---- Pointer events (unified mouse + touch) ----
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, prevX: e.clientX, prevY: e.clientY });
+
+    if (pointers.size === 2) {
+      // Initialize pinch reference
+      const [a, b] = [...pointers.values()];
+      lastMid = midpoint(a, b);
+      lastDist = distance(a, b);
     }
-    lastTouchDist = dist;
-  }
-  constrain();
-  draw();
-}, { passive: false });
+  });
 
-canvas.addEventListener('touchend', e => {
-  if (e.touches.length === 0) {
-    lastTouchX = null;
-    lastTouchY = null;
-    lastTouchDist = null;
+  canvas.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+
+    // Update this pointer's current position
+    const p = pointers.get(e.pointerId);
+    p.x = e.clientX;
+    p.y = e.clientY;
+
+    if (pointers.size === 1) {
+      // Single pointer = pan
+      const { prevX, prevY, x, y } = p;
+      const dx = x - prevX;
+      const dy = y - prevY;
+      offsetX += dx;
+      offsetY += dy;
+      constrain();
+      draw();
+    } else if (pointers.size >= 2) {
+      // Two (or more) pointers = pinch-zoom around the gesture midpoint
+      const [a, b] = [...pointers.values()];
+      const newMid = midpoint(a, b);
+      const newDist = distance(a, b);
+
+      if (lastMid && lastDist) {
+        // World coordinates under previous midpoint (what was under the fingers)
+        const world = screenToWorld(lastMid.x, lastMid.y);
+
+        // Scale change
+        const zoom = newDist / lastDist;
+        const prevScale = scale;
+        scale *= zoom;
+        if (scale < minScale) scale = minScale;
+
+        // Keep the world point under the new finger midpoint
+        offsetX = newMid.x - world.x * scale;
+        offsetY = newMid.y - world.y * scale;
+
+        // Constrain to avoid black edges
+        constrain();
+        draw();
+      }
+
+      // Update refs
+      lastMid = newMid;
+      lastDist = newDist;
+    }
+
+    // Update this pointer's prev for next move
+    p.prevX = p.x;
+    p.prevY = p.y;
+  });
+
+  function endPointer(e) {
+    pointers.delete(e.pointerId);
+
+    if (pointers.size < 2) {
+      // Reset pinch reference when fewer than 2 pointers remain
+      lastMid = null;
+      lastDist = null;
+    }
+
+    // If exactly one pointer remains, ensure its prev is current to avoid a jump
+    if (pointers.size === 1) {
+      const only = [...pointers.values()][0];
+      only.prevX = only.x;
+      only.prevY = only.y;
+    }
   }
-}, { passive: false });
+
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', endPointer);
+
+  // ---- Wheel zoom (desktop), anchored at mouse position ----
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoomFactor = 1.1;
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+
+    const world = screenToWorld(mouseX, mouseY);
+    const prevScale = scale;
+
+    if (e.deltaY < 0) scale *= zoomFactor;
+    else scale /= zoomFactor;
+
+    if (scale < minScale) scale = minScale;
+
+    // Keep mouse point fixed under cursor
+    offsetX = mouseX - world.x * scale;
+    offsetY = mouseY - world.y * scale;
+
+    constrain();
+    draw();
+  }, { passive: false });
+
+  // ---- Resize handling ----
+  window.addEventListener('resize', () => {
+    const worldCenter = screenToWorld(canvas.width / 2, canvas.height / 2); // try to preserve view center
+    setCanvasSize();
+    updateMinScalePreserveView();
+
+    // After resize, re-center around previous world center
+    const screenCenterX = canvas.width / 2;
+    const screenCenterY = canvas.height / 2;
+    offsetX = screenCenterX - worldCenter.x * scale;
+    offsetY = screenCenterY - worldCenter.y * scale;
+
+    constrain();
+    draw();
+  });
+
+  // ---- Init ----
+  setCanvasSize();
+  img.onload = () => {
+    fitToScreenCenterOnce();
+  };
+})();
 </script>
 </body>
 </html>
