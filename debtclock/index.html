@@ -1,75 +1,68 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8" />
-  <title>U.S. Debt Clock</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Debt Clock – Locked Slots</title>
   <style>
+    /* pick the true pixel size of your background art */
+    :root { --w: 1920; --h: 1080; }
+    html,body{height:100%;margin:0}
+    body{display:grid;place-items:center;background:#000;font-family:system-ui,Roboto,Arial,sans-serif}
 
-    html, body { height: 100%; margin: 0; }
-    body { display: grid; place-items: center; background: #000; font-family: system-ui, Roboto, Arial, sans-serif; }
-
-
-    :root {
-      --design-w: 1600;
-      --design-h: 900;
-      --scale: min(100dvw / var(--design-w), 100dvh / var(--design-h));
+    /* responsive wrapper preserves aspect and scales the whole stage */
+    .wrap{
+      position:relative;
+      width:min(100vw, 100vh * (var(--w)/var(--h)));
+      aspect-ratio: calc(var(--w) / var(--h));
+      overflow:hidden;
     }
 
-    .viewport{
-      width: calc(var(--design-w) * 1px);
-      height: calc(var(--design-h) * 1px);
-      transform: scale(var(--scale));
-      transform-origin: top left;
-      overflow: hidden;
+    /* fixed-coordinate stage at design pixels; we scale it with CSS transform */
+    .stage{
+      position:absolute; inset:0;
+      width:calc(var(--w)*1px); height:calc(var(--h)*1px);
+      transform-origin:top left;
+      /* compute scale to fit .wrap exactly */
+      --sx: calc(100% / (var(--w)*1px));
+      --sy: calc(100% / (var(--h)*1px));
+      transform: scale(var(--sx), var(--sy));
+      background:url('background.png') no-repeat 0 0 / 100% 100%;
     }
 
-    
-    .stage {
-      width: calc(var(--design-w) * 1px);
-      height: calc(var(--design-h) * 1px);
-      position: relative;
-      background: url('background.png') no-repeat 0 0 / 100% 100%;
-    }
+    /* your embed root; or use per-slot targets (see below) */
+    .ntd-debt-clock{ position:absolute; inset:0; pointer-events:none; }
 
-
-    .ntd-debt-clock {
-      position: absolute;
-      top: 180px;   
-      left: 320px;
-      transform: none;
-    }
-
-   
-    .slot-national-debt {
-      position: absolute;
-      left: 320px;   
-      top: 180px;    
-      width: 520px;  
-      height: 96px;  
-      display: grid;
-      place-items: center;
-      pointer-events: none;
-      outline: 1px dashed rgba(0,255,255,.3);
-    }
+    /* EXAMPLE slots (coords in design pixels) */
+    .slot-debt   { position:absolute; left:320px;  top:180px;  width:520px; height:96px;  display:grid; place-items:center; }
+    .slot-int    { position:absolute; left:1120px; top:180px;  width:480px; height:96px;  display:grid; place-items:center; }
+    .slot-gdp    { position:absolute; left:320px;  top:330px;  width:520px; height:96px;  display:grid; place-items:center; }
   </style>
 </head>
 <body>
+  <div class="wrap">
+    <div class="stage">
+      <!-- either let the widget render everything in this container... -->
+      <div class="ntd-debt-clock" id="debt-widget"></div>
 
- <div class="viewport">
-  <div class="stage">
-    
-    <div class="ntd-debt-clock" id="debt-widget"></div>
-
-    
-    <div class="slot-national-debt" id="slot-national-debt"></div>
-    
+      <!-- ...or (preferred) mount individual numbers into fixed slots -->
+      <div class="slot-debt" id="slot-debt"></div>
+      <div class="slot-int"  id="slot-int"></div>
+      <div class="slot-gdp"  id="slot-gdp"></div>
+    </div>
   </div>
-</div>
 
   <script src="https://ntdservices-debt-clock.hf.space/static/embed.js" defer></script>
   <script>
-  
+    // If your embed supports targets, route fields to slots:
+    // DebtClockEmbed?.mount({
+    //   container: document.getElementById('debt-widget'), // optional
+    //   targets: {
+    //     totalDebt:  document.getElementById('slot-debt'),
+    //     interestPS: document.getElementById('slot-int'),
+    //     gdp:        document.getElementById('slot-gdp')
+    //   }
+    // });
   </script>
 </body>
 </html>
