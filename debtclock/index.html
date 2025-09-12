@@ -1,68 +1,96 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Debt Clock – Locked Slots</title>
+  <title>Debt Clock – Single Number, Locked Position</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    /* pick the true pixel size of your background art */
+    /* 1) Use your background's real pixel size */
     :root { --w: 1920; --h: 1080; }
-    html,body{height:100%;margin:0}
-    body{display:grid;place-items:center;background:#000;font-family:system-ui,Roboto,Arial,sans-serif}
 
-    /* responsive wrapper preserves aspect and scales the whole stage */
-    .wrap{
-      position:relative;
-      width:min(100vw, 100vh * (var(--w)/var(--h)));
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: grid;
+      place-items: center;
+      background: #000;
+      font-family: system-ui, Roboto, Arial, sans-serif;
+    }
+
+    /* 2) Responsive wrapper that preserves aspect ratio */
+    .wrap {
+      position: relative;
+      width: min(100vw, 100vh * (var(--w) / var(--h)));
       aspect-ratio: calc(var(--w) / var(--h));
-      overflow:hidden;
+      overflow: hidden;
     }
 
-    /* fixed-coordinate stage at design pixels; we scale it with CSS transform */
-    .stage{
-      position:absolute; inset:0;
-      width:calc(var(--w)*1px); height:calc(var(--h)*1px);
-      transform-origin:top left;
-      /* compute scale to fit .wrap exactly */
-      --sx: calc(100% / (var(--w)*1px));
-      --sy: calc(100% / (var(--h)*1px));
+    /* 3) Fixed-coordinate stage at design pixels; we scale it to the wrapper */
+    .stage {
+      position: absolute; inset: 0;
+      width: calc(var(--w) * 1px);
+      height: calc(var(--h) * 1px);
+      transform-origin: top left;
+      --sx: calc(100% / (var(--w) * 1px));
+      --sy: calc(100% / (var(--h) * 1px));
       transform: scale(var(--sx), var(--sy));
-      background:url('background.png') no-repeat 0 0 / 100% 100%;
+      background: url('background.png') no-repeat 0 0 / 100% 100%;
     }
 
-    /* your embed root; or use per-slot targets (see below) */
-    .ntd-debt-clock{ position:absolute; inset:0; pointer-events:none; }
+    /* 4) Single slot where the number will render.
+          Coordinates are in *design pixels* from your artboard. */
+    #slot-number {
+      position: absolute;
+      left: 320px;    /* X position in your design */
+      top: 180px;     /* Y position in your design */
+      width: 520px;   /* slot width in your design */
+      height: 96px;   /* slot height in your design */
 
-    /* EXAMPLE slots (coords in design pixels) */
-    .slot-debt   { position:absolute; left:320px;  top:180px;  width:520px; height:96px;  display:grid; place-items:center; }
-    .slot-int    { position:absolute; left:1120px; top:180px;  width:480px; height:96px;  display:grid; place-items:center; }
-    .slot-gdp    { position:absolute; left:320px;  top:330px;  width:520px; height:96px;  display:grid; place-items:center; }
+      /* Center the content inside the slot */
+      display: grid;
+      place-items: center;
+      text-align: center;
+
+      /* Optional: choose a design font-size & letter spacing in design px.
+         These will scale perfectly with the stage. */
+      font-size: 72px;
+      line-height: 1;
+      letter-spacing: 1px;
+      font-weight: 700;
+
+      /* Remove after aligning */
+      /* outline: 1px dashed rgba(0,255,255,.35); */
+    }
+
+    /* If your embed injects its own element with .ntd-debt-clock,
+       we add a tiny reset so it fills the slot nicely. */
+    #slot-number > .ntd-debt-clock,
+    #slot-number.ntd-debt-clock {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      pointer-events: none; /* optional */
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="stage">
-      <!-- either let the widget render everything in this container... -->
-      <div class="ntd-debt-clock" id="debt-widget"></div>
-
-      <!-- ...or (preferred) mount individual numbers into fixed slots -->
-      <div class="slot-debt" id="slot-debt"></div>
-      <div class="slot-int"  id="slot-int"></div>
-      <div class="slot-gdp"  id="slot-gdp"></div>
+      <!-- Mount the number directly into this slot.
+           Give it the class the embed expects (ntd-debt-clock). -->
+      <div id="slot-number" class="ntd-debt-clock"></div>
     </div>
   </div>
 
+  <!-- Your widget script (unchanged) -->
   <script src="https://ntdservices-debt-clock.hf.space/static/embed.js" defer></script>
+
   <script>
-    // If your embed supports targets, route fields to slots:
-    // DebtClockEmbed?.mount({
-    //   container: document.getElementById('debt-widget'), // optional
-    //   targets: {
-    //     totalDebt:  document.getElementById('slot-debt'),
-    //     interestPS: document.getElementById('slot-int'),
-    //     gdp:        document.getElementById('slot-gdp')
-    //   }
-    // });
+    /* If the embed supports a JS API to mount to a specific element, use it:
+       DebtClockEmbed?.mount({ container: document.getElementById('slot-number') });
+
+       If not, most “embed.js” scripts simply fill the first .ntd-debt-clock element
+       they find — which we’ve made be the #slot-number already. */
   </script>
 </body>
 </html>
