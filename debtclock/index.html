@@ -5,72 +5,37 @@
   <title>U.S. Debt Clock</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    /* 1) Use your background's real pixel size */
-    :root { --w: 1920; --h: 1080; }
+   <style>
+  :root { --w: 1980; --h: 1280; }     /* <-- set to your image’s exact pixels */
 
-    html, body { height: 100%; margin: 0; }
-    body {
-      display: grid;
-      place-items: center;
-      background: #000;
-      font-family: system-ui, Roboto, Arial, sans-serif;
-    }
+  html,body{height:100%;margin:0}
+  body{display:grid;place-items:center;background:#000;font-family:system-ui,Roboto,Arial,sans-serif}
 
-    /* 2) Responsive wrapper that preserves aspect ratio */
-    .wrap {
-      position: relative;
-      width: min(100vw, 100vh * (var(--w) / var(--h)));
-      aspect-ratio: calc(var(--w) / var(--h));
-      overflow: hidden;
-    }
+  /* Fill the width; letterbox vertically if needed */
+  .wrap{
+    position:relative;
+    width:100vw;
+    aspect-ratio: calc(var(--w) / var(--h));
+    overflow:hidden;
+  }
 
-    /* 3) Fixed-coordinate stage at design pixels; we scale it to the wrapper */
-    .stage {
-      position: absolute; inset: 0;
-      width: calc(var(--w) * 1px);
-      height: calc(var(--h) * 1px);
-      transform-origin: top left;
-      --sx: calc(100% / (var(--w) * 1px));
-      --sy: calc(100% / (var(--h) * 1px));
-      transform: scale(var(--sx), var(--sy));
-      background: url('background.png') no-repeat 0 0 / 100% 100%;
-    }
+  .stage{
+    position:absolute; inset:0;
+    width:calc(var(--w)*1px); height:calc(var(--h)*1px);
+    transform-origin:top left;
+    --sx: calc(100% / (var(--w)*1px));
+    --sy: calc(100% / (var(--h)*1px));
+    transform: scale(var(--sx), var(--sy));
+    background:url('background.png') no-repeat 0 0 / 100% 100%;
+  }
 
-    /* 4) Single slot where the number will render.
-          Coordinates are in *design pixels* from your artboard. */
-    #slot-number {
-      position: absolute;
-      left: 320px;    /* X position in your design */
-      top: 180px;     /* Y position in your design */
-      width: 520px;   /* slot width in your design */
-      height: 96px;   /* slot height in your design */
-
-      /* Center the content inside the slot */
-      display: grid;
-      place-items: center;
-      text-align: center;
-
-      /* Optional: choose a design font-size & letter spacing in design px.
-         These will scale perfectly with the stage. */
-      font-size: 72px;
-      line-height: 1;
-      letter-spacing: 1px;
-      font-weight: 700;
-
-      /* Remove after aligning */
-      /* outline: 1px dashed rgba(0,255,255,.35); */
-    }
-
-    /* If your embed injects its own element with .ntd-debt-clock,
-       we add a tiny reset so it fills the slot nicely. */
-    #slot-number > .ntd-debt-clock,
-    #slot-number.ntd-debt-clock {
-      width: 100%;
-      height: 100%;
-      display: grid;
-      place-items: center;
-      pointer-events: none; /* optional */
-    }
+  /* Your single number slot (coords in design pixels) */
+  #slot-number{
+    position:absolute;
+    left: 320px; top: 180px; width: 520px; height: 96px;
+    display:grid; place-items:center; text-align:center;
+    font-size:72px; line-height:1; letter-spacing:1px; font-weight:700;
+  }
   </style>
 </head>
 <body>
