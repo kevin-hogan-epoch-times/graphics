@@ -13,7 +13,15 @@
     :root {
       --design-w: 1600;
       --design-h: 900;
-      --scale: min(100vw / var(--design-w), 100vh / var(--design-h));
+      --scale: min(100dvw / var(--design-w), 100dvh / var(--design-h));
+    }
+
+    .viewport{
+      width: calc(var(--design-w) * 1px);
+      height: calc(var(--design-h) * 1px);
+      transform: scale(var(--scale));
+      transform-origin: top left;
+      overflow: hidden;
     }
 
     
@@ -21,16 +29,14 @@
       width: calc(var(--design-w) * 1px);
       height: calc(var(--design-h) * 1px);
       position: relative;
-      transform: scale(var(--scale));
-      transform-origin: top left;
       background: url('background.png') no-repeat 0 0 / 100% 100%;
     }
 
 
     .ntd-debt-clock {
-      position: relative;
-      top: 1vh;   
-      left: 1vw;
+      position: absolute;
+      top: 180px;   
+      left: 320px;
       transform: none;
     }
 
@@ -50,7 +56,7 @@
 </head>
 <body>
 
- 
+ <div class="viewport">
   <div class="stage">
     
     <div class="ntd-debt-clock" id="debt-widget"></div>
@@ -59,6 +65,7 @@
     <div class="slot-national-debt" id="slot-national-debt"></div>
     
   </div>
+</div>
 
   <script src="https://ntdservices-debt-clock.hf.space/static/embed.js" defer></script>
   <script>
